@@ -263,7 +263,7 @@ def summarize_by(frame: pd.DataFrame, group_column: str) -> pd.DataFrame:
 
 def render_metric_row(properties: dict[str, float]) -> None:
     columns = st.columns(4)
-    columns[0].metric("Current OEW", f"{properties['mass']:,.1f} lbm")
+    columns[0].metric("Status OEW", f"{properties['mass']:,.1f} lbm")
     columns[1].metric("CG X", f"{properties['x']:.2f} ft")
     columns[2].metric("CG Y", f"{properties['y']:.2f} ft")
     columns[3].metric("CG Z", f"{properties['z']:.2f} ft")
@@ -273,7 +273,7 @@ def render_aircraft_condition_strip(aircraft_targets: pd.DataFrame) -> None:
     if aircraft_targets.empty:
         return
 
-    aircraft = aircraft_targets.dropna(subset=["target_mass_lbm"]).copy()
+    aircraft = aircraft_targets.dropna(subset=["workbook_current_lbm"]).copy()
     if aircraft.empty:
         return
 
@@ -281,36 +281,19 @@ def render_aircraft_condition_strip(aircraft_targets: pd.DataFrame) -> None:
     figure.add_trace(
         go.Bar(
             x=aircraft["code"],
-            y=aircraft["target_mass_lbm"],
-            name="Target",
-            marker_color="#8a8f98",
-            text=aircraft["target_mass_lbm"],
+            y=aircraft["workbook_current_lbm"],
+            name="Status",
+            marker_color="#2878b5",
+            text=aircraft["workbook_current_lbm"],
             texttemplate="%{text:,.0f}",
             textposition="outside",
             customdata=aircraft["description"],
-            hovertemplate="<b>%{x}</b><br>%{customdata}<br>Target: %{y:,.1f} lbm"
+            hovertemplate="<b>%{x}</b><br>%{customdata}<br>Status: %{y:,.1f} lbm"
             "<extra></extra>",
         )
     )
-    current = aircraft.dropna(subset=["workbook_current_lbm"])
-    if not current.empty:
-        figure.add_trace(
-            go.Bar(
-                x=current["code"],
-                y=current["workbook_current_lbm"],
-                name="Current",
-                marker_color="#2878b5",
-                text=current["workbook_current_lbm"],
-                texttemplate="%{text:,.0f}",
-                textposition="outside",
-                customdata=current["description"],
-                hovertemplate="<b>%{x}</b><br>%{customdata}<br>Current: %{y:,.1f} lbm"
-                "<extra></extra>",
-            )
-        )
     figure.update_layout(
         height=230,
-        barmode="group",
         yaxis_title="lbm",
         xaxis_title=None,
         margin=dict(l=10, r=10, t=8, b=4),
@@ -464,12 +447,12 @@ def render_iteration_trend(exports: pd.DataFrame, aircraft_targets: pd.DataFrame
             x=trend["export_date"],
             y=trend["mass"],
             mode="lines+markers+text",
-            name="Current OEW",
+            name="Status OEW",
             text=trend["export_version"],
             textposition="top center",
             customdata=trend[["iteration", "export_version"]],
             hovertemplate="<b>%{customdata[1]}</b><br>Date: %{x|%Y-%m-%d}"
-            "<br>Current OEW: %{y:,.1f} lbm<extra></extra>",
+            "<br>Status OEW: %{y:,.1f} lbm<extra></extra>",
         )
     )
     if pd.notna(oew_target):
@@ -533,11 +516,11 @@ def render_target_comparison(
                 customdata=comparison[["target_mass_lbm", "actual_mass_lbm"]],
                 hovertemplate="<b>%{x}</b><br>Status: %{y:+,.1f} lbm"
                 "<br>Target: %{customdata[0]:,.1f} lbm"
-                "<br>Current: %{customdata[1]:,.1f} lbm<extra></extra>",
+                "<br>Status: %{customdata[1]:,.1f} lbm<extra></extra>",
             )
         )
         figure.update_layout(
-            yaxis_title="Status: Current - Target (lbm)",
+            yaxis_title="Status - Target (lbm)",
             xaxis_title="ATA",
             height=520,
             margin=dict(l=10, r=10, t=20, b=10),
@@ -565,11 +548,11 @@ def render_target_comparison(
                 customdata=aircraft[["target_mass_lbm", "workbook_current_lbm"]],
                 hovertemplate="<b>%{x}</b><br>%{text}<br>Status: %{y:+,.1f} lbm"
                 "<br>Target: %{customdata[0]:,.1f} lbm"
-                "<br>Current: %{customdata[1]:,.1f} lbm<extra></extra>",
+                "<br>Status: %{customdata[1]:,.1f} lbm<extra></extra>",
             )
         )
         figure.update_layout(
-            yaxis_title="Status: Current - Target (lbm)",
+            yaxis_title="Status - Target (lbm)",
             xaxis_title="Aircraft condition",
             height=420,
             margin=dict(l=10, r=10, t=20, b=10),
@@ -591,8 +574,6 @@ def render_app() -> None:
     if exports.empty:
         st.error(f"No valid CSV exports found in {EXPORT_DIR.resolve()}.")
         st.stop()
-
-    render_aircraft_condition_strip(aircraft_targets)
 
     ata_names = ATA_NAME_FALLBACK.copy()
     if not ata_targets.empty:
@@ -637,6 +618,7 @@ def render_app() -> None:
     )
     render_version_row(latest, latest_iteration)
     render_metric_row(properties)
+    render_aircraft_condition_strip(aircraft_targets)
 
     ata_summary = summarize_by(latest, "ata_label")
     ata_summary["ata_display"] = ata_summary["ata_label"].map(
