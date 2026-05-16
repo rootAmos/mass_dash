@@ -10,6 +10,10 @@ import streamlit as st
 EXPORT_DIR = Path("MassExports")
 TARGET_WORKBOOK = Path("MassProps.xlsm")
 KG_TO_LBM = 2.2046226218
+M_TO_FT = 3.280839895
+KG_M_TO_LBM_FT = KG_TO_LBM * M_TO_FT
+FIRST_IMPERIAL_EXPORT_VERSION = (0, 1, 6)
+FUEL_ATA_LABEL = "28"
 REQUIRED_COLUMNS = {
     "ata",
     "component",
@@ -30,6 +34,7 @@ NUMERIC_COLUMNS = [
     "my_kgm",
     "mz_kgm",
 ]
+DATE_COLUMNS = ["last_updated"]
 DISPLAY_COLUMNS = [
     "ata_display",
     "component",
@@ -97,6 +102,24 @@ def ata_display_label(ata_label: str, ata_names: dict[str, str]) -> str:
     return f"ATA {ata_label} {ata_name}".strip()
 
 
+def normalize_legacy_metric_export(frame: pd.DataFrame) -> pd.DataFrame:
+    version = frame["export_version"].iloc[0]
+    if version_sort_key(version) >= FIRST_IMPERIAL_EXPORT_VERSION:
+        return frame
+
+    frame = frame.copy()
+    for column in ["unit_mass_kg", "total_mass_kg"]:
+        if column in frame.columns:
+            frame[column] = frame[column] * KG_TO_LBM
+    for column in ["x_m", "y_m", "z_m"]:
+        if column in frame.columns:
+            frame[column] = frame[column] * M_TO_FT
+    for column in ["mx_kgm", "my_kgm", "mz_kgm"]:
+        if column in frame.columns:
+            frame[column] = frame[column] * KG_M_TO_LBM_FT
+    return frame
+
+
 @st.cache_data(show_spinner=False)
 def load_exports(export_dir: str) -> tuple[pd.DataFrame, list[str]]:
     rows = []
@@ -122,6 +145,10 @@ def load_exports(export_dir: str) -> tuple[pd.DataFrame, list[str]]:
         for column in NUMERIC_COLUMNS:
             if column in frame.columns:
                 frame[column] = pd.to_numeric(frame[column], errors="coerce")
+        for column in DATE_COLUMNS:
+            if column in frame.columns:
+                frame[column] = pd.to_datetime(frame[column], errors="coerce")
+        frame = normalize_legacy_metric_export(frame)
         rows.append(frame)
 
     if not rows:
@@ -140,6 +167,8 @@ def load_exports(export_dir: str) -> tuple[pd.DataFrame, list[str]]:
     exports["notes"] = exports["notes"].fillna("")
     exports["status"] = exports["status"].fillna("")
     exports["total_mass_kg"] = exports["total_mass_kg"].fillna(0.0)
+    if "last_updated" not in exports.columns:
+        exports["last_updated"] = pd.NaT
     return exports, warnings
 
 
@@ -210,6 +239,10 @@ def mass_properties(frame: pd.DataFrame) -> dict[str, float]:
     }
 
 
+def oew_frame(frame: pd.DataFrame) -> pd.DataFrame:
+    return frame[frame["ata_label"] != FUEL_ATA_LABEL]
+
+
 def summarize_by(frame: pd.DataFrame, group_column: str) -> pd.DataFrame:
     summary = (
         frame.groupby(group_column, dropna=False)
@@ -230,7 +263,7 @@ def summarize_by(frame: pd.DataFrame, group_column: str) -> pd.DataFrame:
 
 def render_metric_row(properties: dict[str, float]) -> None:
     columns = st.columns(4)
-    columns[0].metric("Total mass", f"{properties['mass']:,.1f} lbm")
+    columns[0].metric("Current OEW", f"{properties['mass']:,.1f} lbm")
     columns[1].metric("CG X", f"{properties['x']:.2f} ft")
     columns[2].metric("CG Y", f"{properties['y']:.2f} ft")
     columns[3].metric("CG Z", f"{properties['z']:.2f} ft")
@@ -350,29 +383,64 @@ def render_ata_tables(latest: pd.DataFrame, ata_summary: pd.DataFrame) -> None:
             )
 
 
-def render_iteration_trend(exports: pd.DataFrame) -> None:
+def render_iteration_trend(exports: pd.DataFrame, aircraft_targets: pd.DataFrame) -> None:
     trend = (
         exports.groupby(["export_version", "iteration"], sort=False)
-        .apply(lambda frame: pd.Series(mass_properties(frame)), include_groups=False)
+        .apply(
+            lambda frame: pd.Series(
+                {
+                    **mass_properties(oew_frame(frame)),
+                    "export_date": frame["last_updated"].dropna().min(),
+                }
+            ),
+            include_groups=False,
+        )
         .reset_index()
     )
     trend = trend.sort_values(
         "export_version",
         key=lambda series: series.map(version_sort_key),
     )
-    chart = px.line(
-        trend,
-        x="export_version",
-        y="mass",
-        markers=True,
-        labels={"export_version": "Export version", "mass": "Total mass (lbm)"},
-        hover_data={"iteration": True, "mass": ":,.1f"},
+
+    oew_target = pd.NA
+    if not aircraft_targets.empty:
+        oew_rows = aircraft_targets[aircraft_targets["code"].eq("OEW")]
+        if not oew_rows.empty:
+            oew_target = oew_rows["target_mass_lbm"].iloc[0]
+
+    figure = go.Figure()
+    figure.add_trace(
+        go.Scatter(
+            x=trend["export_date"],
+            y=trend["mass"],
+            mode="lines+markers+text",
+            name="Current OEW",
+            text=trend["export_version"],
+            textposition="top center",
+            customdata=trend[["iteration", "export_version"]],
+            hovertemplate="<b>%{customdata[1]}</b><br>Date: %{x|%Y-%m-%d}"
+            "<br>Current OEW: %{y:,.1f} lbm<extra></extra>",
+        )
     )
-    chart.update_traces(
-        hovertemplate="<b>%{x}</b><br>Total mass: %{y:,.1f} lbm<extra></extra>"
+    if pd.notna(oew_target):
+        figure.add_trace(
+            go.Scatter(
+                x=trend["export_date"],
+                y=[oew_target] * len(trend),
+                mode="lines+markers",
+                name="Target OEW",
+                hovertemplate="Date: %{x|%Y-%m-%d}<br>Target OEW: %{y:,.1f} lbm"
+                "<extra></extra>",
+            )
+        )
+    figure.update_layout(
+        xaxis_title="Date",
+        yaxis_title="OEW (lbm)",
+        height=460,
+        margin=dict(l=10, r=10, t=20, b=10),
     )
     st.subheader("Version History")
-    st.plotly_chart(chart, use_container_width=True)
+    st.plotly_chart(figure, use_container_width=True)
 
 
 def render_target_comparison(
@@ -401,25 +469,26 @@ def render_target_comparison(
         comparison = comparison.sort_values("ata_label", key=lambda series: series.astype(int))
         figure = go.Figure()
         figure.add_trace(
-            go.Scatter(
+            go.Bar(
                 x=comparison["ata_display"],
                 y=comparison["target_mass_lbm"],
-                mode="lines+markers",
                 name="Target",
+                hovertemplate="<b>%{x}</b><br>Target: %{y:,.1f} lbm<extra></extra>",
             )
         )
         figure.add_trace(
-            go.Scatter(
+            go.Bar(
                 x=comparison["ata_display"],
                 y=comparison["actual_mass_lbm"],
-                mode="lines+markers",
-                name="Actual",
+                name="Current",
+                hovertemplate="<b>%{x}</b><br>Current: %{y:,.1f} lbm<extra></extra>",
             )
         )
         figure.update_layout(
             yaxis_title="Mass (lbm)",
             xaxis_title="ATA",
             height=520,
+            barmode="group",
             margin=dict(l=10, r=10, t=20, b=10),
         )
         st.plotly_chart(figure, use_container_width=True)
@@ -504,7 +573,7 @@ def render_app() -> None:
 
     latest_iteration = selected_iterations[-1]
     latest = filtered[filtered["iteration"] == latest_iteration]
-    properties = mass_properties(latest)
+    properties = mass_properties(oew_frame(latest))
 
     st.caption(
         f"Showing {len(filtered):,} rows from {len(selected_iterations)} export iteration(s)."
@@ -524,7 +593,7 @@ def render_app() -> None:
     st.subheader("Component Breakdown")
     render_component_bar(component_summary, top_n)
 
-    render_iteration_trend(exports)
+    render_iteration_trend(exports, aircraft_targets)
     render_target_comparison(latest, ata_targets, aircraft_targets)
 
     render_ata_tables(latest, ata_summary)
