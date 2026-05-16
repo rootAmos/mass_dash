@@ -269,6 +269,56 @@ def render_metric_row(properties: dict[str, float]) -> None:
     columns[3].metric("CG Z", f"{properties['z']:.2f} ft")
 
 
+def render_aircraft_condition_strip(aircraft_targets: pd.DataFrame) -> None:
+    if aircraft_targets.empty:
+        return
+
+    aircraft = aircraft_targets.dropna(subset=["target_mass_lbm"]).copy()
+    if aircraft.empty:
+        return
+
+    figure = go.Figure()
+    figure.add_trace(
+        go.Bar(
+            x=aircraft["code"],
+            y=aircraft["target_mass_lbm"],
+            name="Target",
+            marker_color="#8a8f98",
+            text=aircraft["target_mass_lbm"],
+            texttemplate="%{text:,.0f}",
+            textposition="outside",
+            customdata=aircraft["description"],
+            hovertemplate="<b>%{x}</b><br>%{customdata}<br>Target: %{y:,.1f} lbm"
+            "<extra></extra>",
+        )
+    )
+    current = aircraft.dropna(subset=["workbook_current_lbm"])
+    if not current.empty:
+        figure.add_trace(
+            go.Bar(
+                x=current["code"],
+                y=current["workbook_current_lbm"],
+                name="Current",
+                marker_color="#2878b5",
+                text=current["workbook_current_lbm"],
+                texttemplate="%{text:,.0f}",
+                textposition="outside",
+                customdata=current["description"],
+                hovertemplate="<b>%{x}</b><br>%{customdata}<br>Current: %{y:,.1f} lbm"
+                "<extra></extra>",
+            )
+        )
+    figure.update_layout(
+        height=230,
+        barmode="group",
+        yaxis_title="lbm",
+        xaxis_title=None,
+        margin=dict(l=10, r=10, t=8, b=4),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    )
+    st.plotly_chart(figure, use_container_width=True)
+
+
 def render_version_row(latest: pd.DataFrame, latest_iteration: str) -> None:
     versions = sorted(
         str(value) for value in latest["export_version"].dropna().unique() if str(value)
@@ -541,6 +591,8 @@ def render_app() -> None:
     if exports.empty:
         st.error(f"No valid CSV exports found in {EXPORT_DIR.resolve()}.")
         st.stop()
+
+    render_aircraft_condition_strip(aircraft_targets)
 
     ata_names = ATA_NAME_FALLBACK.copy()
     if not ata_targets.empty:
