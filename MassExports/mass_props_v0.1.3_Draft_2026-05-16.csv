@@ -1,0 +1,116 @@
+version,status,last_updated,author,change_note,ata,component,description,qty,unit_mass_kg,total_mass_kg,x_m,y_m,z_m,mx_kgm,my_kgm,mz_kgm,notes
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),21,Pack 1,0,1,35,35,11.5,-0.4,1.8,402.5,-14,63,"Aft of wing, LH"
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),21,Pack 2,0,1,35,35,11.5,0.4,1.8,402.5,14,63,"Aft of wing, RH"
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),21,Mix Manifold,0,1,18,18,10.5,0,1.5,189,0,27,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),22,FCC 1,0,1,8,8,3.5,-0.2,1.8,28,-1.6,14.4,Avionics bay fwd
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),22,FCC 2,0,1,8,8,3.5,0.2,1.8,28,1.6,14.4,Avionics bay fwd
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),22,Autothrottle Servo,0,1,3,3,4,0,1.5,12,0,4.5,Throttle quadrant
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),23,VHF Comm 1,0,1,4,4,3.2,-0.2,1.9,12.8,-0.8,7.6,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),23,VHF Comm 2,0,1,4,4,3.2,0.2,1.9,12.8,0.8,7.6,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),23,SATCOM,0,1,12,12,14,0,2.6,168,0,31.2,Upper aft fuselage
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),23,CVR,0,1,5,5,17,0,2,85,0,10,Aft fuselage (crashworthy)
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),24,IDG 1,0,1,35,35,12.5,-0.5,2.2,437.5,-17.5,77,Engine accessory gearbox LH
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),24,IDG 2,0,1,35,35,12.5,0.5,2.2,437.5,17.5,77,Engine accessory gearbox RH
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),24,APU Generator,0,1,25,25,19.5,0,2.4,487.5,0,60,On APU
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),24,Main Battery,0,2,22,44,2.8,0,0.9,123.2,0,39.6,"Fwd equipment bay, 2x NiCd"
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),24,TRU 1,0,1,18,18,3,-0.3,1.4,54,-5.4,25.2,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),24,TRU 2,0,1,18,18,3,0.3,1.4,54,5.4,25.2,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),25,Flight Deck Seats,0,2,35,70,3.2,0,1.6,224,0,112,2 crew
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),25,Cabin Seats,0,9,45,405,8.5,0,1.6,3442.5,0,648,9 pax club + divan avg position
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),25,Galley Fwd,0,1,90,90,5,-0.4,1.7,450,-36,153,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),25,Galley Aft,0,1,60,60,14,0.4,1.7,840,24,102,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),25,Lavatory Fwd,0,1,40,40,5.5,0.4,1.7,220,16,68,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),25,Lavatory Aft,0,1,55,55,15.5,0,1.7,852.5,0,93.5,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),25,Overhead Bins,0,1,120,120,8.5,0,2.4,1020,0,288,"Distributed, lumped at cabin centroid"
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),26,Engine 1 Fire Bottle,0,1,8,8,12,-0.6,2.3,96,-4.8,18.4,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),26,Engine 2 Fire Bottle,0,1,8,8,12,0.6,2.3,96,4.8,18.4,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),26,APU Fire Bottle,0,1,6,6,19,0,2.3,114,0,13.8,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),26,Cargo Fire Bottles,0,2,7,14,16.5,0,1,231,0,14,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),27,Aileron LH,0,1,18,18,11,-7.5,2.2,198,-135,39.6,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),27,Aileron RH,0,1,18,18,11,7.5,2.2,198,135,39.6,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),27,Elevator LH,0,1,22,22,19.5,-2,5,429,-44,110,T-tail
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),27,Elevator RH,0,1,22,22,19.5,2,5,429,44,110,T-tail
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),27,Rudder,0,1,30,30,19.5,0,4.2,585,0,126,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),27,Flap LH,0,1,55,55,10.5,-4,2,577.5,-220,110,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),27,Flap RH,0,1,55,55,10.5,4,2,577.5,220,110,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),27,Spoilers,0,4,12,48,10.8,0,2.1,518.4,0,100.8,2 per wing
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),27,PCU Assemblies,0,8,10,80,12,0,2.5,960,0,200,Distributed
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),28,Fuel Tank LH (full),0,1,2500,2500,10.5,-3,2,26250,-7500,5000,"Integral wing tank, ~3100 L Jet A"
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),28,Fuel Tank RH (full),0,1,2500,2500,10.5,3,2,26250,7500,5000,"Integral wing tank, ~3100 L Jet A"
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),28,Center Tank (full),0,1,1300,1300,10,0,1.6,13000,0,2080,Wing center section
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),28,Boost Pumps,0,4,6,24,10.5,0,1.8,252,0,43.2,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),28,Fuel Lines,0,1,40,40,11,0,1.8,440,0,72,Lumped
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),29,Hyd System A Pump,0,1,12,12,12.5,-0.5,2,150,-6,24,Engine-driven LH
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),29,Hyd System B Pump,0,1,12,12,12.5,0.5,2,150,6,24,Engine-driven RH
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),29,Hyd Reservoir A,0,1,15,15,13.5,-0.4,1.9,202.5,-6,28.5,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),29,Hyd Reservoir B,0,1,15,15,13.5,0.4,1.9,202.5,6,28.5,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),30,Wing Anti-Ice Ducting,0,1,35,35,10.5,0,1.9,367.5,0,66.5,Bleed-air leading edge
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),30,Engine Anti-Ice Valves,0,2,3,6,12,0,2.2,72,0,13.2,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),30,Window Heat,0,1,8,8,3,0,2,24,0,16,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),31,DFDR,0,1,8,8,17,0,2,136,0,16,Aft fuselage (crashworthy)
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),31,Display Units,0,4,10,40,3,0,1.8,120,0,72,Cockpit
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),32,Nose Gear Assy,0,1,140,140,4.5,0,0.6,630,0,84,Retracted position centroid
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),32,MLG LH,0,1,350,350,11.5,-1.8,0.8,4025,-630,280,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),32,MLG RH,0,1,350,350,11.5,1.8,0.8,4025,630,280,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),32,Brakes,0,4,35,140,11.5,0,0.6,1610,0,84,4 wheels
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),32,Wheels & Tires,0,6,25,150,10.5,0,0.6,1575,0,90,4 MLG + 2 NLG
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),33,Landing Lights,0,4,3,12,10.5,0,1,126,0,12,Wing root / MLG
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),33,Nav Lights,0,3,1,3,12,0,2.5,36,0,7.5,Wingtips + tail
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),33,Cabin Lighting,0,1,20,20,8.5,0,2.3,170,0,46,Distributed
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),34,IRS 1,0,1,18,18,3.5,-0.3,1.7,63,-5.4,30.6,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),34,IRS 2,0,1,18,18,3.5,0.3,1.7,63,5.4,30.6,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),34,GPS,0,2,3,6,3.5,0,2.5,21,0,15,Antennas on top fuselage
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),34,Weather Radar,0,1,15,15,1.5,0,1.5,22.5,0,22.5,Nose radome
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),34,Radio Altimeter,0,2,4,8,11,0,0.7,88,0,5.6,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),35,Crew O2 Bottle,0,1,18,18,3.5,0.4,0.9,63,7.2,16.2,Fwd equipment bay
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),35,Pax O2 Generators,0,1,45,45,8.5,0,2.4,382.5,0,108,Chemical generators in PSU
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),36,Bleed Air Ducting,0,1,60,60,11.5,0,1.9,690,0,114,Engine to wing/pack
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),36,Precoolers,0,2,20,40,12,0,2,480,0,80,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),38,Potable Water Tank,0,1,65,65,5,0,1,325,0,65,~60 L at 100% fill
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),38,Waste Tank,0,1,80,80,15.5,0,1,1240,0,80,Aft of aft lav
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),49,APU Assembly,0,1,145,145,19.5,0,2.3,2827.5,0,333.5,"Aft fuselage, typ. P&W 901 class"
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),49,APU Mounts,0,1,18,18,19.5,0,2.3,351,0,41.4,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),49,APU Inlet/Exhaust,0,1,22,22,19.5,0,2.6,429,0,57.2,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),52,Fwd Pax Door LH,0,1,85,85,4,-0.9,1.4,340,-76.5,119,Main entry / airstair
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),52,Fwd Pax Door RH,0,1,35,35,4,0.9,1.4,140,31.5,49,Service door
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),52,Aft Pax Door LH,0,1,30,30,15.5,-0.9,1.4,465,-27,42,Emergency exit
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),52,Aft Pax Door RH,0,1,30,30,15.5,0.9,1.4,465,27,42,Emergency exit
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),52,Cargo Door Fwd,0,1,45,45,4.5,0,0.5,202.5,0,22.5,Belly nose baggage
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),52,Cargo Door Aft,0,1,55,55,16.5,-0.9,1.2,907.5,-49.5,66,External aft baggage
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),53,Fwd Fuselage Section,0,1,550,550,3.5,0,1.5,1925,0,825,Nose to fwd pressure bulkhead
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),53,Center Fuselage Section,0,1,950,950,10.5,0,1.7,9975,0,1615,Wing carry-through
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),53,Aft Fuselage Section,0,1,650,650,16.5,0,1.8,10725,0,1170,Pressurized aft + tailcone
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),53,Pressure Bulkhead,0,1,90,90,17.5,0,1.8,1575,0,162,Aft pressure bulkhead
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),54,Pylon LH,0,1,110,110,13,-1.2,2.2,1430,-132,242,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),54,Pylon RH,0,1,110,110,13,1.2,2.2,1430,132,242,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),54,Nacelle LH,0,1,180,180,13.2,-1.5,2.3,2376,-270,414,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),54,Nacelle RH,0,1,180,180,13.2,1.5,2.3,2376,270,414,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),55,Horizontal Stab,0,1,280,280,19,0,5,5320,0,1400,T-tail top of vertical
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),55,Vertical Stab,0,1,320,320,18.5,0,3.5,5920,0,1120,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),56,Flight Deck Windows,0,1,85,85,3.2,0,2,272,0,170,"5-panel, lumped"
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),56,Cabin Windows,0,14,10,140,8.5,0,2,1190,0,280,7 per side
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),57,Wing Box LH,0,1,480,480,10.5,-3,1.9,5040,-1440,912,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),57,Wing Box RH,0,1,480,480,10.5,3,1.9,5040,1440,912,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),57,Wing Skins LH,0,1,220,220,10.5,-5,2,2310,-1100,440,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),57,Wing Skins RH,0,1,220,220,10.5,5,2,2310,1100,440,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),57,Leading Edge,0,1,110,110,10,0,2,1100,0,220,"Both wings, lumped"
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),57,Trailing Edge,0,1,130,130,11.5,0,2,1495,0,260,"Both wings, lumped"
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),71,Engine 1 Core,0,1,750,750,13.2,-1.2,2.3,9900,-900,1725,"Dry weight, aft fuselage mount"
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),71,Engine 2 Core,0,1,750,750,13.2,1.2,2.3,9900,900,1725,"Dry weight, aft fuselage mount"
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),71,Engine Mounts LH,0,1,40,40,13,-1.2,2.3,520,-48,92,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),71,Engine Mounts RH,0,1,40,40,13,1.2,2.3,520,48,92,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),73,FADEC 1,0,1,8,8,13,-1.2,2.3,104,-9.6,18.4,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),73,FADEC 2,0,1,8,8,13,1.2,2.3,104,9.6,18.4,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),73,Fuel Metering Unit 1,0,1,12,12,13,-1.2,2.3,156,-14.4,27.6,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),73,Fuel Metering Unit 2,0,1,12,12,13,1.2,2.3,156,14.4,27.6,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),75,Bleed Valves,0,4,4,16,13,0,2.3,208,0,36.8,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),75,Variable Stator Vanes,0,2,6,12,13,0,2.3,156,0,27.6,Per engine actuator
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),78,Exhaust Nozzle LH,0,1,35,35,14,-1.2,2.3,490,-42,80.5,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),78,Exhaust Nozzle RH,0,1,35,35,14,1.2,2.3,490,42,80.5,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),78,Thrust Reverser LH,0,1,90,90,13.8,-1.2,2.3,1242,-108,207,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),78,Thrust Reverser RH,0,1,90,90,13.8,1.2,2.3,1242,108,207,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),79,Oil Tank 1,0,1,12,12,13.2,-1.2,2.4,158.4,-14.4,28.8,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),79,Oil Tank 2,0,1,12,12,13.2,1.2,2.4,158.4,14.4,28.8,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),79,Oil Coolers,0,2,8,16,13.5,0,2.3,216,0,36.8,0
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),80,Starter 1,0,1,10,10,12.8,-1.2,2.3,128,-12,23,Air turbine starter
+1899-12-30,Draft,2026-05-16,0,Initial business jet baseline (Challenger 350 / Praetor 500 class),80,Starter 2,0,1,10,10,12.8,1.2,2.3,128,12,23,Air turbine starter
