@@ -3,10 +3,13 @@ import re
 
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
 
 
 EXPORT_DIR = Path("MassExports")
+TARGET_WORKBOOK = Path("MassProps.xlsm")
+KG_TO_LBM = 2.2046226218
 REQUIRED_COLUMNS = {
     "ata",
     "component",
@@ -28,6 +31,7 @@ NUMERIC_COLUMNS = [
     "mz_kgm",
 ]
 DISPLAY_COLUMNS = [
+    "ata_display",
     "component",
     "description",
     "qty",
@@ -41,11 +45,56 @@ DISPLAY_COLUMNS = [
     "export_version",
     "status",
 ]
+ATA_NAME_FALLBACK = {
+    "21": "Air Conditioning",
+    "22": "Auto Flight",
+    "23": "Communications",
+    "24": "Electrical Power",
+    "25": "Equipment / Furnishings",
+    "26": "Fire Protection",
+    "27": "Flight Controls",
+    "28": "Fuel",
+    "29": "Hydraulic Power",
+    "30": "Ice & Rain Protection",
+    "31": "Indicating / Recording",
+    "32": "Landing Gear",
+    "33": "Lights",
+    "34": "Navigation",
+    "35": "Oxygen",
+    "36": "Pneumatic",
+    "38": "Water / Waste",
+    "49": "APU",
+    "52": "Doors",
+    "53": "Fuselage",
+    "54": "Nacelles / Pylons",
+    "55": "Stabilizers",
+    "56": "Windows",
+    "57": "Wings",
+    "71": "Power Plant",
+    "73": "Engine Fuel & Control",
+    "75": "Engine Air",
+    "78": "Exhaust",
+    "79": "Engine Oil",
+    "80": "Starting",
+}
 
 
 def export_version_from_path(path: Path) -> str:
     version_match = re.search(r"v\d+(?:\.\d+)+", path.stem)
     return version_match.group(0) if version_match else path.stem
+
+
+def version_sort_key(version: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in re.findall(r"\d+", str(version)))
+
+
+def is_excel_error(value: object) -> bool:
+    return bool(re.fullmatch(r"Error\s+\d+", str(value).strip(), flags=re.IGNORECASE))
+
+
+def ata_display_label(ata_label: str, ata_names: dict[str, str]) -> str:
+    ata_name = ata_names.get(str(ata_label), "")
+    return f"ATA {ata_label} {ata_name}".strip()
 
 
 @st.cache_data(show_spinner=False)
@@ -85,11 +134,67 @@ def load_exports(export_dir: str) -> tuple[pd.DataFrame, list[str]]:
 
     exports["ata_label"] = exports["ata"].fillna(-1).astype(int).astype(str)
     exports["component"] = exports["component"].fillna("Unspecified")
-    exports["description"] = exports["description"].fillna("")
+    exports["description"] = exports["description"].fillna("").map(
+        lambda value: "" if is_excel_error(value) else value
+    )
     exports["notes"] = exports["notes"].fillna("")
     exports["status"] = exports["status"].fillna("")
     exports["total_mass_kg"] = exports["total_mass_kg"].fillna(0.0)
     return exports, warnings
+
+
+@st.cache_data(show_spinner=False)
+def load_targets(workbook_path: str) -> tuple[pd.DataFrame, pd.DataFrame, list[str]]:
+    warnings = []
+    path = Path(workbook_path)
+    if not path.exists():
+        return pd.DataFrame(), pd.DataFrame(), [f"{path.name} not found; target charts hidden."]
+
+    try:
+        raw = pd.read_excel(path, sheet_name="Target", header=None)
+    except Exception as exc:
+        return pd.DataFrame(), pd.DataFrame(), [f"Could not read Target sheet: {exc}"]
+
+    ata_rows = []
+    condition_rows = []
+    section = None
+    for row in raw.itertuples(index=False, name=None):
+        first = row[0]
+        if first == "ATA":
+            section = "ata"
+            continue
+        if first == "Code":
+            section = "condition"
+            continue
+        if pd.isna(first):
+            continue
+
+        if section == "ata" and isinstance(first, (int, float)):
+            ata_rows.append(
+                {
+                    "ata_label": str(int(first)),
+                    "ata_name": str(row[1]),
+                    "target_mass_lbm": pd.to_numeric(row[2], errors="coerce") * KG_TO_LBM,
+                    "workbook_current_lbm": pd.to_numeric(row[3], errors="coerce") * KG_TO_LBM,
+                }
+            )
+        elif section == "condition" and isinstance(first, str):
+            condition_rows.append(
+                {
+                    "code": first,
+                    "description": str(row[1]),
+                    "target_mass_lbm": pd.to_numeric(row[2], errors="coerce") * KG_TO_LBM,
+                    "workbook_current_lbm": pd.to_numeric(row[3], errors="coerce") * KG_TO_LBM,
+                }
+            )
+
+    ata_targets = pd.DataFrame(ata_rows)
+    aircraft_targets = pd.DataFrame(condition_rows)
+    if ata_targets.empty:
+        warnings.append("No ATA targets found in the Target sheet.")
+    if aircraft_targets.empty:
+        warnings.append("No aircraft-level targets found in the Target sheet.")
+    return ata_targets, aircraft_targets, warnings
 
 
 def mass_properties(frame: pd.DataFrame) -> dict[str, float]:
@@ -125,10 +230,10 @@ def summarize_by(frame: pd.DataFrame, group_column: str) -> pd.DataFrame:
 
 def render_metric_row(properties: dict[str, float]) -> None:
     columns = st.columns(4)
-    columns[0].metric("Total mass", f"{properties['mass']:,.1f} kg")
-    columns[1].metric("CG X", f"{properties['x']:.2f} m")
-    columns[2].metric("CG Y", f"{properties['y']:.2f} m")
-    columns[3].metric("CG Z", f"{properties['z']:.2f} m")
+    columns[0].metric("Total mass", f"{properties['mass']:,.1f} lbm")
+    columns[1].metric("CG X", f"{properties['x']:.2f} ft")
+    columns[2].metric("CG Y", f"{properties['y']:.2f} ft")
+    columns[3].metric("CG Z", f"{properties['z']:.2f} ft")
 
 
 def render_version_row(latest: pd.DataFrame, latest_iteration: str) -> None:
@@ -136,28 +241,31 @@ def render_version_row(latest: pd.DataFrame, latest_iteration: str) -> None:
         str(value) for value in latest["export_version"].dropna().unique() if str(value)
     )
     statuses = sorted(str(value) for value in latest["status"].dropna().unique() if str(value))
-    files = sorted(str(value) for value in latest["export_file"].dropna().unique() if str(value))
 
-    columns = st.columns(3)
+    columns = st.columns(2)
     columns[0].metric("Version", ", ".join(versions) if versions else latest_iteration)
     columns[1].metric("Status", ", ".join(statuses) if statuses else "Unspecified")
-    columns[2].metric("Source file", files[0] if len(files) == 1 else f"{len(files)} files")
 
 
 def render_ata_pie(summary: pd.DataFrame) -> None:
     chart = px.pie(
         summary,
-        names="ata_label",
+        names="ata_display",
         values="total_mass_kg",
         hole=0.34,
         labels={
-            "ata_label": "ATA",
-            "total_mass_kg": "Mass (kg)",
+            "ata_display": "ATA",
+            "total_mass_kg": "Mass (lbm)",
             "share_pct": "Share (%)",
         },
-        hover_data={"share_pct": ":.1f", "item_count": True},
+        custom_data=["share_pct", "item_count"],
     )
-    chart.update_traces(textposition="inside", textinfo="label+percent")
+    chart.update_traces(
+        textposition="inside",
+        textinfo="label+percent",
+        hovertemplate="<b>%{label}</b><br>Mass: %{value:,.1f} lbm"
+        "<br>Share: %{customdata[0]:.1f}%<br>Components: %{customdata[1]:,}<extra></extra>",
+    )
     chart.update_layout(height=500, margin=dict(l=10, r=10, t=20, b=10), showlegend=True)
     st.plotly_chart(chart, use_container_width=True)
 
@@ -167,17 +275,22 @@ def render_component_bar(summary: pd.DataFrame, top_n: int) -> None:
     chart = px.bar(
         visible_summary.sort_values("total_mass_kg"),
         x="total_mass_kg",
-        y="component",
+        y="component_display",
         orientation="h",
         text="total_mass_kg",
         labels={
-            "total_mass_kg": "Mass (kg)",
-            "component": "Component",
+            "total_mass_kg": "Mass (lbm)",
+            "component_display": "Component",
             "share_pct": "Share (%)",
         },
-        hover_data={"share_pct": ":.1f", "item_count": True},
+        custom_data=["share_pct", "item_count"],
     )
-    chart.update_traces(texttemplate="%{text:,.0f} kg", textposition="outside")
+    chart.update_traces(
+        texttemplate="%{text:,.0f} lbm",
+        textposition="outside",
+        hovertemplate="<b>%{y}</b><br>Mass: %{x:,.1f} lbm"
+        "<br>Share: %{customdata[0]:.1f}%<br>Rows: %{customdata[1]:,}<extra></extra>",
+    )
     chart.update_layout(
         height=max(420, 26 * len(visible_summary)),
         margin=dict(l=10, r=10, t=20, b=10),
@@ -198,15 +311,16 @@ def render_ata_tables(latest: pd.DataFrame, ata_summary: pd.DataFrame) -> None:
         table_columns = [column for column in DISPLAY_COLUMNS if column in ata_frame.columns]
         table = ata_frame[table_columns].rename(
             columns={
+                "ata_display": "ATA",
                 "component": "Component",
                 "description": "Description",
                 "qty": "Qty",
-                "unit_mass_kg": "Unit mass (kg)",
-                "total_mass_kg": "Mass (kg)",
+                "unit_mass_kg": "Unit mass (lbm)",
+                "total_mass_kg": "Mass (lbm)",
                 "share_pct": "Share (%)",
-                "x_m": "X (m)",
-                "y_m": "Y (m)",
-                "z_m": "Z (m)",
+                "x_m": "X (ft)",
+                "y_m": "Y (ft)",
+                "z_m": "Z (ft)",
                 "notes": "Notes",
                 "export_version": "Version",
                 "status": "Status",
@@ -214,7 +328,7 @@ def render_ata_tables(latest: pd.DataFrame, ata_summary: pd.DataFrame) -> None:
         )
 
         with st.expander(
-            f"ATA {row.ata_label} - {row.total_mass_kg:,.1f} kg "
+            f"{row.ata_display} | {row.total_mass_kg:,.1f} lbm "
             f"({row.share_pct:.1f}%, {row.item_count:,} components)",
             expanded=True,
         ):
@@ -222,12 +336,12 @@ def render_ata_tables(latest: pd.DataFrame, ata_summary: pd.DataFrame) -> None:
                 table.style.format(
                     {
                         "Qty": "{:,.0f}",
-                        "Unit mass (kg)": "{:,.1f}",
-                        "Mass (kg)": "{:,.1f}",
+                        "Unit mass (lbm)": "{:,.1f}",
+                        "Mass (lbm)": "{:,.1f}",
                         "Share (%)": "{:.1f}",
-                        "X (m)": "{:.2f}",
-                        "Y (m)": "{:.2f}",
-                        "Z (m)": "{:.2f}",
+                        "X (ft)": "{:.2f}",
+                        "Y (ft)": "{:.2f}",
+                        "Z (ft)": "{:.2f}",
                     },
                     na_rep="",
                 ),
@@ -236,18 +350,136 @@ def render_ata_tables(latest: pd.DataFrame, ata_summary: pd.DataFrame) -> None:
             )
 
 
+def render_iteration_trend(exports: pd.DataFrame) -> None:
+    trend = (
+        exports.groupby(["export_version", "iteration"], sort=False)
+        .apply(lambda frame: pd.Series(mass_properties(frame)), include_groups=False)
+        .reset_index()
+    )
+    trend = trend.sort_values(
+        "export_version",
+        key=lambda series: series.map(version_sort_key),
+    )
+    chart = px.line(
+        trend,
+        x="export_version",
+        y="mass",
+        markers=True,
+        labels={"export_version": "Export version", "mass": "Total mass (lbm)"},
+        hover_data={"iteration": True, "mass": ":,.1f"},
+    )
+    chart.update_traces(
+        hovertemplate="<b>%{x}</b><br>Total mass: %{y:,.1f} lbm<extra></extra>"
+    )
+    st.subheader("Version History")
+    st.plotly_chart(chart, use_container_width=True)
+
+
+def render_target_comparison(
+    latest: pd.DataFrame,
+    ata_targets: pd.DataFrame,
+    aircraft_targets: pd.DataFrame,
+) -> None:
+    if ata_targets.empty and aircraft_targets.empty:
+        return
+
+    st.subheader("Target Comparison")
+    if not ata_targets.empty:
+        target_names = dict(zip(ata_targets["ata_label"], ata_targets["ata_name"]))
+        actual = (
+            latest.groupby(["ata_label", "ata_display"], dropna=False)
+            .agg(actual_mass_lbm=("total_mass_kg", "sum"))
+            .reset_index()
+        )
+        comparison = ata_targets.merge(actual, on="ata_label", how="left")
+        comparison["ata_display"] = comparison.apply(
+            lambda row: row["ata_display"]
+            if isinstance(row.get("ata_display"), str)
+            else ata_display_label(row["ata_label"], target_names),
+            axis=1,
+        )
+        comparison = comparison.sort_values("ata_label", key=lambda series: series.astype(int))
+        figure = go.Figure()
+        figure.add_trace(
+            go.Scatter(
+                x=comparison["ata_display"],
+                y=comparison["target_mass_lbm"],
+                mode="lines+markers",
+                name="Target",
+            )
+        )
+        figure.add_trace(
+            go.Scatter(
+                x=comparison["ata_display"],
+                y=comparison["actual_mass_lbm"],
+                mode="lines+markers",
+                name="Actual",
+            )
+        )
+        figure.update_layout(
+            yaxis_title="Mass (lbm)",
+            xaxis_title="ATA",
+            height=520,
+            margin=dict(l=10, r=10, t=20, b=10),
+        )
+        st.plotly_chart(figure, use_container_width=True)
+
+    if not aircraft_targets.empty:
+        aircraft = aircraft_targets.dropna(subset=["target_mass_lbm"])
+        figure = go.Figure()
+        figure.add_trace(
+            go.Scatter(
+                x=aircraft["code"],
+                y=aircraft["target_mass_lbm"],
+                mode="lines+markers",
+                name="Target",
+                text=aircraft["description"],
+            )
+        )
+        figure.add_trace(
+            go.Scatter(
+                x=aircraft["code"],
+                y=aircraft["workbook_current_lbm"],
+                mode="lines+markers",
+                name="Workbook current",
+                text=aircraft["description"],
+            )
+        )
+        figure.update_layout(
+            yaxis_title="Mass (lbm)",
+            xaxis_title="Aircraft condition",
+            height=420,
+            margin=dict(l=10, r=10, t=20, b=10),
+        )
+        st.plotly_chart(figure, use_container_width=True)
+
+
 def render_app() -> None:
     st.title("AstroM Mass Breakdown")
 
     exports, load_warnings = load_exports(str(EXPORT_DIR))
+    ata_targets, aircraft_targets, target_warnings = load_targets(str(TARGET_WORKBOOK))
     for warning in load_warnings:
+        st.warning(warning)
+    for warning in target_warnings:
         st.warning(warning)
 
     if exports.empty:
         st.error(f"No valid CSV exports found in {EXPORT_DIR.resolve()}.")
         st.stop()
 
-    iterations = sorted(exports["iteration"].unique())
+    ata_names = ATA_NAME_FALLBACK.copy()
+    if not ata_targets.empty:
+        ata_names.update(dict(zip(ata_targets["ata_label"], ata_targets["ata_name"])))
+    exports["ata_display"] = exports["ata_label"].map(
+        lambda value: ata_display_label(value, ata_names)
+    )
+    exports["component_display"] = exports["ata_display"] + " | " + exports["component"]
+
+    iterations = sorted(
+        exports["iteration"].unique(),
+        key=lambda value: version_sort_key(export_version_from_path(Path(value))),
+    )
     selected_iterations = st.sidebar.multiselect(
         "Export iterations",
         iterations,
@@ -281,7 +513,10 @@ def render_app() -> None:
     render_metric_row(properties)
 
     ata_summary = summarize_by(latest, "ata_label")
-    component_summary = summarize_by(latest, "component")
+    ata_summary["ata_display"] = ata_summary["ata_label"].map(
+        lambda value: ata_display_label(value, ata_names)
+    )
+    component_summary = summarize_by(latest, "component_display")
 
     st.subheader("ATA Breakdown")
     render_ata_pie(ata_summary)
@@ -289,20 +524,8 @@ def render_app() -> None:
     st.subheader("Component Breakdown")
     render_component_bar(component_summary, top_n)
 
-    trend = (
-        filtered.groupby("iteration", sort=False)
-        .apply(lambda frame: pd.Series(mass_properties(frame)), include_groups=False)
-        .reset_index()
-    )
-    trend_chart = px.line(
-        trend,
-        x="iteration",
-        y="mass",
-        markers=True,
-        labels={"iteration": "Export iteration", "mass": "Total mass (kg)"},
-    )
-    st.subheader("Iteration Trend")
-    st.plotly_chart(trend_chart, use_container_width=True)
+    render_iteration_trend(exports)
+    render_target_comparison(latest, ata_targets, aircraft_targets)
 
     render_ata_tables(latest, ata_summary)
 
