@@ -91,6 +91,11 @@ RISK_VALUE_ALIASES = {
     "p95_lbm": ("p95", "p95 oew", "95th percentile", "95 percentile"),
     "sigma_lbm": ("sigma", "std dev", "standard deviation", "stdev"),
 }
+RISK_PLOT_HEADERS = {
+    "target_lbm": "tgtx",
+    "mean_lbm": "meanx",
+    "p95_lbm": "p95x",
+}
 
 
 def export_version_from_path(path: Path) -> str:
@@ -255,6 +260,29 @@ def first_numeric_after(row: tuple[object, ...], start_index: int) -> float | No
     return None
 
 
+def first_numeric_below(raw: pd.DataFrame, row_index: int, column_index: int) -> float | None:
+    for value in raw.iloc[row_index + 1 :, column_index]:
+        numeric = pd.to_numeric(value, errors="coerce")
+        if pd.notna(numeric):
+            return float(numeric)
+    return None
+
+
+def load_risk_plot_line_values(raw: pd.DataFrame) -> dict[str, float]:
+    values = {}
+    for row_index, row in raw.iterrows():
+        for column_index, cell in enumerate(row):
+            header = normalized_label(cell).replace(" ", "")
+            for key, expected_header in RISK_PLOT_HEADERS.items():
+                if header == expected_header and key not in values:
+                    numeric = first_numeric_below(raw, row_index, column_index)
+                    if numeric is not None:
+                        values[key] = numeric
+    if {"mean_lbm", "p95_lbm"}.issubset(values):
+        values["sigma_lbm"] = abs(values["p95_lbm"] - values["mean_lbm"]) / P95_Z_SCORE
+    return values
+
+
 @st.cache_data(show_spinner=False)
 def load_risk(workbook_path: str) -> tuple[dict[str, float], list[str]]:
     path = Path(workbook_path)
@@ -268,7 +296,7 @@ def load_risk(workbook_path: str) -> tuple[dict[str, float], list[str]]:
     except Exception as exc:
         return {}, [f"Could not read Risk sheet: {exc}"]
 
-    values = {}
+    values = load_risk_plot_line_values(raw)
     for row in raw.itertuples(index=False, name=None):
         for index, cell in enumerate(row):
             key = risk_key_for_label(cell)
