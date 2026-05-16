@@ -243,6 +243,16 @@ def oew_frame(frame: pd.DataFrame) -> pd.DataFrame:
     return frame[frame["ata_label"] != FUEL_ATA_LABEL]
 
 
+def target_condition_value(aircraft_targets: pd.DataFrame, code: str) -> float | None:
+    if aircraft_targets.empty:
+        return None
+    rows = aircraft_targets[aircraft_targets["code"].eq(code)]
+    if rows.empty:
+        return None
+    value = rows["workbook_current_lbm"].iloc[0]
+    return None if pd.isna(value) else float(value)
+
+
 def summarize_by(frame: pd.DataFrame, group_column: str) -> pd.DataFrame:
     summary = (
         frame.groupby(group_column, dropna=False)
@@ -261,48 +271,12 @@ def summarize_by(frame: pd.DataFrame, group_column: str) -> pd.DataFrame:
     return summary
 
 
-def render_metric_row(properties: dict[str, float]) -> None:
-    columns = st.columns(4)
-    columns[0].metric("Status OEW", f"{properties['mass']:,.1f} lbm")
-    columns[1].metric("CG X", f"{properties['x']:.2f} ft")
-    columns[2].metric("CG Y", f"{properties['y']:.2f} ft")
-    columns[3].metric("CG Z", f"{properties['z']:.2f} ft")
-
-
-def render_aircraft_condition_strip(aircraft_targets: pd.DataFrame) -> None:
-    if aircraft_targets.empty:
-        return
-
-    aircraft = aircraft_targets.dropna(subset=["workbook_current_lbm"]).copy()
-    if aircraft.empty:
-        return
-
-    figure = go.Figure()
-    figure.add_trace(
-        go.Bar(
-            x=aircraft["code"],
-            y=aircraft["workbook_current_lbm"],
-            name="Status",
-            marker_color="#2878b5",
-            text=aircraft["workbook_current_lbm"],
-            texttemplate="%{text:,.0f}",
-            textposition="outside",
-            customdata=aircraft["description"],
-            hovertemplate="<b>%{x}</b><br>%{customdata}<br>Status: %{y:,.1f} lbm"
-            "<extra></extra>",
-        )
-    )
-    figure.update_layout(
-        height=230,
-        yaxis_title="lbm",
-        xaxis_title=None,
-        margin=dict(l=10, r=10, t=8, b=4),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    )
-    st.plotly_chart(figure, use_container_width=True)
-
-
-def render_version_row(latest: pd.DataFrame, latest_iteration: str) -> None:
+def render_header_rows(
+    latest: pd.DataFrame,
+    latest_iteration: str,
+    properties: dict[str, float],
+    aircraft_targets: pd.DataFrame,
+) -> None:
     versions = sorted(
         str(value) for value in latest["export_version"].dropna().unique() if str(value)
     )
@@ -311,6 +285,19 @@ def render_version_row(latest: pd.DataFrame, latest_iteration: str) -> None:
     columns = st.columns(2)
     columns[0].metric("Version", ", ".join(versions) if versions else latest_iteration)
     columns[1].metric("Status", ", ".join(statuses) if statuses else "Unspecified")
+
+    oew = properties["mass"]
+    mtow = target_condition_value(aircraft_targets, "MTOW")
+    zfw = target_condition_value(aircraft_targets, "ZFW")
+    columns = st.columns(3)
+    columns[0].metric("OEW", f"{oew:,.1f} lbm")
+    columns[1].metric("MTOW", f"{mtow:,.1f} lbm" if mtow is not None else "N/A")
+    columns[2].metric("ZFW", f"{zfw:,.1f} lbm" if zfw is not None else "N/A")
+
+    columns = st.columns(3)
+    columns[0].metric("CG X", f"{properties['x']:.2f} ft")
+    columns[1].metric("CG Y", f"{properties['y']:.2f} ft")
+    columns[2].metric("CG Z", f"{properties['z']:.2f} ft")
 
 
 def render_ata_pie(summary: pd.DataFrame) -> None:
@@ -616,9 +603,7 @@ def render_app() -> None:
     st.caption(
         f"Showing {len(filtered):,} rows from {len(selected_iterations)} export iteration(s)."
     )
-    render_version_row(latest, latest_iteration)
-    render_metric_row(properties)
-    render_aircraft_condition_strip(aircraft_targets)
+    render_header_rows(latest, latest_iteration, properties, aircraft_targets)
 
     ata_summary = summarize_by(latest, "ata_label")
     ata_summary["ata_display"] = ata_summary["ata_label"].map(
