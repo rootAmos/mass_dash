@@ -39,19 +39,16 @@ NUMERIC_COLUMNS = [
 ]
 DATE_COLUMNS = ["last_updated"]
 DISPLAY_COLUMNS = [
-    "ata_display",
     "component",
-    "description",
     "qty",
     "unit_mass_kg",
     "total_mass_kg",
+    "unc_plus_lbm",
+    "unc_minus_lbm",
     "share_pct",
     "x_m",
     "y_m",
     "z_m",
-    "notes",
-    "export_version",
-    "status",
 ]
 ATA_NAME_FALLBACK = {
     "21": "Air Conditioning",
@@ -238,6 +235,45 @@ def load_targets(workbook_path: str) -> tuple[pd.DataFrame, pd.DataFrame, list[s
     if aircraft_targets.empty:
         warnings.append("No aircraft-level targets found in the Target sheet.")
     return ata_targets, aircraft_targets, warnings
+
+
+@st.cache_data(show_spinner=False)
+def load_uncertainties(workbook_path: str) -> tuple[pd.DataFrame, list[str]]:
+    path = Path(workbook_path)
+    if not path.exists():
+        return pd.DataFrame(), [f"{path.name} not found; uncertainty values hidden."]
+
+    try:
+        raw = pd.read_excel(path, sheet_name="Mass", header=None)
+    except Exception as exc:
+        return pd.DataFrame(), [f"Could not read Mass sheet uncertainty values: {exc}"]
+
+    header_matches = raw.index[raw.iloc[:, 0].eq("ATA") & raw.iloc[:, 1].eq("Component")]
+    if header_matches.empty:
+        return pd.DataFrame(), ["Mass sheet uncertainty table header not found."]
+
+    header_index = int(header_matches[0])
+    headers = raw.iloc[header_index].tolist()
+    unc_plus_column = next(
+        (header for header in headers if "unc" in str(header).lower() and "+" in str(header)),
+        None,
+    )
+    unc_minus_column = next(
+        (
+            header
+            for header in headers
+            if "unc" in str(header).lower() and any(token in str(header) for token in ("-", "−"))
+        ),
+        None,
+    )
+    table = raw.iloc[header_index + 1 :].copy()
+    table.columns = headers
+    table = table[pd.to_numeric(table["ATA"], errors="coerce").notna()].copy()
+    table["ata_label"] = pd.to_numeric(table["ATA"], errors="coerce").astype(int).astype(str)
+    table["component"] = table["Component"].astype(str)
+    table["unc_plus_lbm"] = pd.to_numeric(table.get(unc_plus_column), errors="coerce")
+    table["unc_minus_lbm"] = pd.to_numeric(table.get(unc_minus_column), errors="coerce")
+    return table[["ata_label", "component", "unc_plus_lbm", "unc_minus_lbm"]], []
 
 
 def normalized_label(value: object) -> str:
@@ -456,19 +492,16 @@ def render_ata_tables(latest: pd.DataFrame, ata_summary: pd.DataFrame) -> None:
         table_columns = [column for column in DISPLAY_COLUMNS if column in ata_frame.columns]
         table = ata_frame[table_columns].rename(
             columns={
-                "ata_display": "ATA",
                 "component": "Component",
-                "description": "Description",
                 "qty": "Qty",
                 "unit_mass_kg": "Unit mass (lbm)",
                 "total_mass_kg": "Mass (lbm)",
+                "unc_plus_lbm": "Unc + (lbm)",
+                "unc_minus_lbm": "Unc - (lbm)",
                 "share_pct": "Share (%)",
                 "x_m": "X (ft)",
                 "y_m": "Y (ft)",
                 "z_m": "Z (ft)",
-                "notes": "Notes",
-                "export_version": "Version",
-                "status": "Status",
             }
         )
 
@@ -483,6 +516,8 @@ def render_ata_tables(latest: pd.DataFrame, ata_summary: pd.DataFrame) -> None:
                         "Qty": "{:,.0f}",
                         "Unit mass (lbm)": "{:,.1f}",
                         "Mass (lbm)": "{:,.1f}",
+                        "Unc + (lbm)": "{:,.1f}",
+                        "Unc - (lbm)": "{:,.1f}",
                         "Share (%)": "{:.1f}",
                         "X (ft)": "{:.2f}",
                         "Y (ft)": "{:.2f}",
@@ -734,10 +769,13 @@ def render_app() -> None:
 
     exports, load_warnings = load_exports(str(EXPORT_DIR))
     ata_targets, aircraft_targets, target_warnings = load_targets(str(TARGET_WORKBOOK))
+    uncertainties, uncertainty_warnings = load_uncertainties(str(TARGET_WORKBOOK))
     risk_values, risk_warnings = load_risk(str(TARGET_WORKBOOK))
     for warning in load_warnings:
         st.warning(warning)
     for warning in target_warnings:
+        st.warning(warning)
+    for warning in uncertainty_warnings:
         st.warning(warning)
     for warning in risk_warnings:
         st.warning(warning)
@@ -753,6 +791,8 @@ def render_app() -> None:
         lambda value: ata_display_label(value, ata_names)
     )
     exports["component_display"] = exports["ata_display"] + " | " + exports["component"]
+    if not uncertainties.empty:
+        exports = exports.merge(uncertainties, on=["ata_label", "component"], how="left")
 
     iterations = sorted(
         exports["iteration"].unique(),
