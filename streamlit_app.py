@@ -1,6 +1,8 @@
 from pathlib import Path
+import math
 import re
 
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -14,6 +16,7 @@ M_TO_FT = 3.280839895
 KG_M_TO_LBM_FT = KG_TO_LBM * M_TO_FT
 FIRST_IMPERIAL_EXPORT_VERSION = (0, 1, 6)
 FUEL_ATA_LABEL = "28"
+P95_Z_SCORE = 1.6448536269514722
 REQUIRED_COLUMNS = {
     "ata",
     "component",
@@ -81,6 +84,12 @@ ATA_NAME_FALLBACK = {
     "78": "Exhaust",
     "79": "Engine Oil",
     "80": "Starting",
+}
+RISK_VALUE_ALIASES = {
+    "target_lbm": ("target", "target oew", "oew target", "target mass"),
+    "mean_lbm": ("adjusted mean", "mean", "status mean", "oew mean"),
+    "p95_lbm": ("p95", "p95 oew", "95th percentile", "95 percentile"),
+    "sigma_lbm": ("sigma", "std dev", "standard deviation", "stdev"),
 }
 
 
@@ -224,6 +233,61 @@ def load_targets(workbook_path: str) -> tuple[pd.DataFrame, pd.DataFrame, list[s
     if aircraft_targets.empty:
         warnings.append("No aircraft-level targets found in the Target sheet.")
     return ata_targets, aircraft_targets, warnings
+
+
+def normalized_label(value: object) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", str(value).lower()).strip()
+
+
+def risk_key_for_label(label: str) -> str | None:
+    normalized = normalized_label(label)
+    for key, aliases in RISK_VALUE_ALIASES.items():
+        if any(alias in normalized for alias in aliases):
+            return key
+    return None
+
+
+def first_numeric_after(row: tuple[object, ...], start_index: int) -> float | None:
+    for value in row[start_index + 1 :]:
+        numeric = pd.to_numeric(value, errors="coerce")
+        if pd.notna(numeric):
+            return float(numeric)
+    return None
+
+
+@st.cache_data(show_spinner=False)
+def load_risk(workbook_path: str) -> tuple[dict[str, float], list[str]]:
+    path = Path(workbook_path)
+    if not path.exists():
+        return {}, [f"{path.name} not found; risk plot hidden."]
+
+    try:
+        raw = pd.read_excel(path, sheet_name="Risk", header=None)
+    except ValueError:
+        return {}, [f"{path.name} has no Risk sheet; risk plot hidden."]
+    except Exception as exc:
+        return {}, [f"Could not read Risk sheet: {exc}"]
+
+    values = {}
+    for row in raw.itertuples(index=False, name=None):
+        for index, cell in enumerate(row):
+            key = risk_key_for_label(cell)
+            if key and key not in values:
+                numeric = first_numeric_after(row, index)
+                if numeric is not None:
+                    values[key] = numeric
+
+    if "sigma_lbm" not in values and {"mean_lbm", "p95_lbm"}.issubset(values):
+        values["sigma_lbm"] = abs(values["p95_lbm"] - values["mean_lbm"]) / P95_Z_SCORE
+
+    required = {"target_lbm", "mean_lbm", "p95_lbm", "sigma_lbm"}
+    missing = sorted(required.difference(values))
+    if missing:
+        return {}, [f"Risk sheet is missing: {', '.join(missing)}."]
+    if values["sigma_lbm"] <= 0:
+        return {}, ["Risk sheet sigma must be greater than zero."]
+
+    return values, []
 
 
 def mass_properties(frame: pd.DataFrame) -> dict[str, float]:
@@ -463,6 +527,82 @@ def render_iteration_trend(exports: pd.DataFrame, aircraft_targets: pd.DataFrame
     st.plotly_chart(figure, use_container_width=True)
 
 
+def normal_density_percent_per_100_lbm(
+    x_values: np.ndarray,
+    mean: float,
+    sigma: float,
+) -> np.ndarray:
+    coefficient = 1 / (sigma * math.sqrt(2 * math.pi))
+    density = coefficient * np.exp(-0.5 * ((x_values - mean) / sigma) ** 2)
+    return density * 100 * 100
+
+
+def render_risk_plot(risk_values: dict[str, float]) -> None:
+    if not risk_values:
+        return
+
+    target = risk_values["target_lbm"]
+    mean = risk_values["mean_lbm"]
+    p95 = risk_values["p95_lbm"]
+    sigma = risk_values["sigma_lbm"]
+    x_min = min(target, mean, p95) - 4 * sigma
+    x_max = max(target, mean, p95) + 4 * sigma
+    x_values = np.linspace(x_min, x_max, 500)
+    y_values = normal_density_percent_per_100_lbm(x_values, mean, sigma)
+
+    figure = go.Figure()
+    figure.add_trace(
+        go.Scatter(
+            x=x_values,
+            y=y_values,
+            mode="lines",
+            line=dict(color="#5eaa3a", width=2),
+            name="Risk density",
+            hovertemplate="OEW: %{x:,.1f} lbm<br>Density: %{y:.1f}% per 100 lbm"
+            "<extra></extra>",
+        )
+    )
+    tail_mask = x_values >= target
+    figure.add_trace(
+        go.Scatter(
+            x=x_values[tail_mask],
+            y=y_values[tail_mask],
+            mode="lines",
+            line=dict(color="#d62728", width=2),
+            name="Over target tail",
+            hovertemplate="OEW: %{x:,.1f} lbm<br>Density: %{y:.1f}% per 100 lbm"
+            "<extra></extra>",
+        )
+    )
+    line_specs = [
+        ("Target", target, "#000000"),
+        ("Adjusted Mean", mean, "#1f77b4"),
+        ("P95", p95, "#6f2dbd"),
+    ]
+    y_top = float(y_values.max()) * 1.15
+    for name, value, color in line_specs:
+        figure.add_trace(
+            go.Scatter(
+                x=[value, value],
+                y=[0, y_top],
+                mode="lines",
+                line=dict(color=color, width=2),
+                name=name,
+                hovertemplate=f"{name}: {value:,.1f} lbm<extra></extra>",
+            )
+        )
+
+    figure.update_layout(
+        height=520,
+        xaxis_title="OEW (lbm)",
+        yaxis_title="Probability density (% per 100 lbm)",
+        margin=dict(l=10, r=10, t=20, b=10),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5),
+    )
+    st.subheader("OEW Risk")
+    st.plotly_chart(figure, use_container_width=True)
+
+
 def render_target_comparison(
     latest: pd.DataFrame,
     ata_targets: pd.DataFrame,
@@ -553,9 +693,12 @@ def render_app() -> None:
 
     exports, load_warnings = load_exports(str(EXPORT_DIR))
     ata_targets, aircraft_targets, target_warnings = load_targets(str(TARGET_WORKBOOK))
+    risk_values, risk_warnings = load_risk(str(TARGET_WORKBOOK))
     for warning in load_warnings:
         st.warning(warning)
     for warning in target_warnings:
+        st.warning(warning)
+    for warning in risk_warnings:
         st.warning(warning)
 
     if exports.empty:
@@ -618,6 +761,7 @@ def render_app() -> None:
     render_component_bar(component_summary, top_n)
 
     render_iteration_trend(exports, aircraft_targets)
+    render_risk_plot(risk_values)
     render_target_comparison(latest, ata_targets, aircraft_targets)
 
     render_ata_tables(latest, ata_summary)
