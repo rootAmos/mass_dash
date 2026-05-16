@@ -622,6 +622,16 @@ def render_risk_plot(risk_values: dict[str, float]) -> None:
                 hovertemplate=f"{name}: {value:,.1f} lbm<extra></extra>",
             )
         )
+        figure.add_annotation(
+            x=value,
+            y=y_top,
+            text=name.upper() if name != "P95" else "95%",
+            showarrow=False,
+            textangle=-90,
+            xanchor="left",
+            yanchor="top",
+            font=dict(color=color, size=12),
+        )
 
     figure.update_layout(
         height=520,
