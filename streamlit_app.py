@@ -497,27 +497,30 @@ def render_target_comparison(
         aircraft = aircraft_targets.dropna(subset=["target_mass_lbm"])
         figure = go.Figure()
         figure.add_trace(
-            go.Scatter(
+            go.Bar(
                 x=aircraft["code"],
                 y=aircraft["target_mass_lbm"],
-                mode="lines+markers",
                 name="Target",
                 text=aircraft["description"],
+                hovertemplate="<b>%{x}</b><br>%{text}<br>Target: %{y:,.1f} lbm"
+                "<extra></extra>",
             )
         )
         figure.add_trace(
-            go.Scatter(
+            go.Bar(
                 x=aircraft["code"],
                 y=aircraft["workbook_current_lbm"],
-                mode="lines+markers",
                 name="Workbook current",
                 text=aircraft["description"],
+                hovertemplate="<b>%{x}</b><br>%{text}<br>Current: %{y:,.1f} lbm"
+                "<extra></extra>",
             )
         )
         figure.update_layout(
             yaxis_title="Mass (lbm)",
             xaxis_title="Aircraft condition",
             height=420,
+            barmode="group",
             margin=dict(l=10, r=10, t=20, b=10),
         )
         st.plotly_chart(figure, use_container_width=True)
