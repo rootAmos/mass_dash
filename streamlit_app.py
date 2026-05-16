@@ -466,63 +466,65 @@ def render_target_comparison(
             else ata_display_label(row["ata_label"], target_names),
             axis=1,
         )
+        comparison["status_delta_lbm"] = (
+            comparison["actual_mass_lbm"] - comparison["target_mass_lbm"]
+        )
+        comparison["status_color"] = comparison["status_delta_lbm"].map(
+            lambda value: "#d62728" if value > 0 else "#2ca02c"
+        )
         comparison = comparison.sort_values("ata_label", key=lambda series: series.astype(int))
         figure = go.Figure()
         figure.add_trace(
             go.Bar(
                 x=comparison["ata_display"],
-                y=comparison["target_mass_lbm"],
-                name="Target",
-                hovertemplate="<b>%{x}</b><br>Target: %{y:,.1f} lbm<extra></extra>",
-            )
-        )
-        figure.add_trace(
-            go.Bar(
-                x=comparison["ata_display"],
-                y=comparison["actual_mass_lbm"],
-                name="Current",
-                hovertemplate="<b>%{x}</b><br>Current: %{y:,.1f} lbm<extra></extra>",
+                y=comparison["status_delta_lbm"],
+                marker_color=comparison["status_color"],
+                name="Status",
+                customdata=comparison[["target_mass_lbm", "actual_mass_lbm"]],
+                hovertemplate="<b>%{x}</b><br>Status: %{y:+,.1f} lbm"
+                "<br>Target: %{customdata[0]:,.1f} lbm"
+                "<br>Current: %{customdata[1]:,.1f} lbm<extra></extra>",
             )
         )
         figure.update_layout(
-            yaxis_title="Mass (lbm)",
+            yaxis_title="Status: Current - Target (lbm)",
             xaxis_title="ATA",
             height=520,
-            barmode="group",
             margin=dict(l=10, r=10, t=20, b=10),
         )
+        figure.add_hline(y=0, line_width=1, line_color="#666")
         st.plotly_chart(figure, use_container_width=True)
 
     if not aircraft_targets.empty:
         aircraft = aircraft_targets.dropna(subset=["target_mass_lbm"])
+        aircraft = aircraft.copy()
+        aircraft["status_delta_lbm"] = (
+            aircraft["workbook_current_lbm"] - aircraft["target_mass_lbm"]
+        )
+        aircraft["status_color"] = aircraft["status_delta_lbm"].map(
+            lambda value: "#d62728" if value > 0 else "#2ca02c"
+        )
         figure = go.Figure()
         figure.add_trace(
             go.Bar(
                 x=aircraft["code"],
-                y=aircraft["target_mass_lbm"],
-                name="Target",
+                y=aircraft["status_delta_lbm"],
+                marker_color=aircraft["status_color"],
+                name="Status",
                 text=aircraft["description"],
-                hovertemplate="<b>%{x}</b><br>%{text}<br>Target: %{y:,.1f} lbm"
-                "<extra></extra>",
-            )
-        )
-        figure.add_trace(
-            go.Bar(
-                x=aircraft["code"],
-                y=aircraft["workbook_current_lbm"],
-                name="Workbook current",
-                text=aircraft["description"],
-                hovertemplate="<b>%{x}</b><br>%{text}<br>Current: %{y:,.1f} lbm"
-                "<extra></extra>",
+                customdata=aircraft[["target_mass_lbm", "workbook_current_lbm"]],
+                hovertemplate="<b>%{x}</b><br>%{text}<br>Status: %{y:+,.1f} lbm"
+                "<br>Target: %{customdata[0]:,.1f} lbm"
+                "<br>Current: %{customdata[1]:,.1f} lbm<extra></extra>",
             )
         )
         figure.update_layout(
-            yaxis_title="Mass (lbm)",
+            yaxis_title="Status: Current - Target (lbm)",
             xaxis_title="Aircraft condition",
             height=420,
-            barmode="group",
             margin=dict(l=10, r=10, t=20, b=10),
         )
+        figure.add_hline(y=0, line_width=1, line_color="#666")
         st.plotly_chart(figure, use_container_width=True)
 
 
