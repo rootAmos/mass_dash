@@ -579,13 +579,16 @@ def render_risk_plot(risk_values: dict[str, float]) -> None:
     y_values = normal_density_percent_per_100_lbm(x_values, mean, sigma)
 
     figure = go.Figure()
+    below_mask = x_values <= target
     figure.add_trace(
         go.Scatter(
-            x=x_values,
-            y=y_values,
+            x=x_values[below_mask],
+            y=y_values[below_mask],
             mode="lines",
+            fill="tozeroy",
+            fillcolor="rgba(94, 170, 58, 0.22)",
             line=dict(color="#5eaa3a", width=2),
-            name="Risk density",
+            name="Below target",
             hovertemplate="OEW: %{x:,.1f} lbm<br>Density: %{y:.1f}% per 100 lbm"
             "<extra></extra>",
         )
