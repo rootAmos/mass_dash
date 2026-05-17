@@ -19,11 +19,6 @@ FUEL_ATA_LABEL = "28"
 P95_Z_SCORE = 1.6448536269514722
 REQUIRED_COLUMNS = {
     "ata",
-    "component",
-    "total_mass_kg",
-    "mx_kgm",
-    "my_kgm",
-    "mz_kgm",
 }
 NUMERIC_COLUMNS = [
     "ata",
@@ -36,10 +31,22 @@ NUMERIC_COLUMNS = [
     "mx_kgm",
     "my_kgm",
     "mz_kgm",
+    "total_mass_lbm",
+    "target_mass_lbm",
+    "delta_lbm",
+    "x_cg_ft",
+    "y_cg_ft",
+    "z_cg_ft",
+    "mx_lbm_ft",
+    "my_lbm_ft",
+    "mz_lbm_ft",
+    "unc_plus_lbm",
+    "unc_minus_lbm",
 ]
 DATE_COLUMNS = ["last_updated"]
 DISPLAY_COLUMNS = [
     "component",
+    "ata_label",
     "qty",
     "unit_mass_kg",
     "total_mass_kg",
@@ -47,6 +54,9 @@ DISPLAY_COLUMNS = [
     "x_m",
     "y_m",
     "z_m",
+    "target_mass_lbm",
+    "delta_lbm",
+    "system_owner",
 ]
 ATA_NAME_FALLBACK = {
     "21": "Air Conditioning",
@@ -141,6 +151,15 @@ def normalize_legacy_metric_export(frame: pd.DataFrame) -> pd.DataFrame:
     return frame
 
 
+def read_export_csv(path: Path) -> pd.DataFrame:
+    for encoding in ("utf-8", "cp1252"):
+        try:
+            return pd.read_csv(path, encoding=encoding)
+        except UnicodeDecodeError:
+            continue
+    return pd.read_csv(path, encoding="latin1")
+
+
 def metadata_value(frame: pd.DataFrame, column: str) -> object:
     if column in frame.columns:
         values = frame[column].dropna()
@@ -154,17 +173,45 @@ def metadata_value(frame: pd.DataFrame, column: str) -> object:
     return pd.NA
 
 
+def normalize_export_schema(frame: pd.DataFrame) -> pd.DataFrame:
+    frame = frame.copy()
+    if "system" in frame.columns and "component" not in frame.columns:
+        frame["component"] = frame["system"]
+    if "group" not in frame.columns:
+        frame["group"] = "Ungrouped"
+    if "total_mass_lbm" in frame.columns:
+        frame["total_mass_kg"] = frame["total_mass_lbm"]
+    if "x_cg_ft" in frame.columns:
+        frame["x_m"] = frame["x_cg_ft"]
+    if "y_cg_ft" in frame.columns:
+        frame["y_m"] = frame["y_cg_ft"]
+    if "z_cg_ft" in frame.columns:
+        frame["z_m"] = frame["z_cg_ft"]
+    if "mx_lbm_ft" in frame.columns:
+        frame["mx_kgm"] = frame["mx_lbm_ft"]
+    if "my_lbm_ft" in frame.columns:
+        frame["my_kgm"] = frame["my_lbm_ft"]
+    if "mz_lbm_ft" in frame.columns:
+        frame["mz_kgm"] = frame["mz_lbm_ft"]
+    if "qty" not in frame.columns:
+        frame["qty"] = 1
+    if "unit_mass_kg" not in frame.columns and "total_mass_kg" in frame.columns:
+        frame["unit_mass_kg"] = frame["total_mass_kg"]
+    return frame
+
+
 @st.cache_data(show_spinner=False)
 def load_exports(export_dir: str) -> tuple[pd.DataFrame, list[str]]:
     rows = []
     warnings = []
     for path in sorted(Path(export_dir).glob("*.csv")):
         try:
-            frame = pd.read_csv(path)
+            frame = read_export_csv(path)
         except Exception as exc:
             warnings.append(f"Skipping {path.name}; could not read CSV: {exc}")
             continue
 
+        frame = normalize_export_schema(frame)
         missing_columns = REQUIRED_COLUMNS.difference(frame.columns)
         if missing_columns:
             warnings.append(
@@ -190,6 +237,7 @@ def load_exports(export_dir: str) -> tuple[pd.DataFrame, list[str]]:
             if column in frame.columns:
                 frame[column] = pd.to_numeric(frame[column], errors="coerce")
         frame = frame[frame["ata"].notna()].copy()
+        frame = frame[frame["total_mass_kg"].notna()].copy()
         frame = normalize_legacy_metric_export(frame)
         rows.append(frame)
 
@@ -203,6 +251,7 @@ def load_exports(export_dir: str) -> tuple[pd.DataFrame, list[str]]:
 
     exports["ata_label"] = exports["ata"].fillna(-1).astype(int).astype(str)
     exports["component"] = exports["component"].fillna("Unspecified")
+    exports["group"] = exports["group"].fillna("Ungrouped")
     if "description" not in exports.columns:
         exports["description"] = ""
     exports["description"] = exports["description"].fillna("").map(
@@ -488,6 +537,29 @@ def render_ata_pie(summary: pd.DataFrame) -> None:
     st.plotly_chart(chart, use_container_width=True)
 
 
+def render_group_pie(summary: pd.DataFrame) -> None:
+    chart = px.pie(
+        summary,
+        names="group",
+        values="total_mass_kg",
+        hole=0.34,
+        labels={
+            "group": "Group",
+            "total_mass_kg": "Mass (lbm)",
+            "share_pct": "Share (%)",
+        },
+        custom_data=["share_pct", "item_count"],
+    )
+    chart.update_traces(
+        textposition="inside",
+        textinfo="label+percent",
+        hovertemplate="<b>%{label}</b><br>Mass: %{value:,.1f} lbm"
+        "<br>Share: %{customdata[0]:.1f}%<br>Systems: %{customdata[1]:,}<extra></extra>",
+    )
+    chart.update_layout(height=500, margin=dict(l=10, r=10, t=20, b=10), showlegend=True)
+    st.plotly_chart(chart, use_container_width=True)
+
+
 def render_component_bar(summary: pd.DataFrame, top_n: int) -> None:
     visible_summary = summary.head(top_n)
     chart = px.bar(
@@ -516,22 +588,23 @@ def render_component_bar(summary: pd.DataFrame, top_n: int) -> None:
     st.plotly_chart(chart, use_container_width=True)
 
 
-def render_ata_tables(latest: pd.DataFrame, ata_summary: pd.DataFrame) -> None:
-    st.subheader("ATA Component Tables")
+def render_group_tables(latest: pd.DataFrame, group_summary: pd.DataFrame) -> None:
+    st.subheader("Group System Tables")
 
-    for row in ata_summary.itertuples(index=False):
-        ata_frame = latest[latest["ata_label"] == row.ata_label].copy()
-        ata_frame = ata_frame.sort_values(["total_mass_kg", "component"], ascending=[False, True])
-        ata_frame["uncertainty_lbm"] = ata_frame.apply(
+    for row in group_summary.itertuples(index=False):
+        group_frame = latest[latest["group"] == row.group].copy()
+        group_frame = group_frame.sort_values(["ata", "total_mass_kg"], ascending=[True, False])
+        group_frame["uncertainty_lbm"] = group_frame.apply(
             lambda item: f"+{item['unc_plus_lbm']:,.1f} / -{item['unc_minus_lbm']:,.1f}"
             if pd.notna(item.get("unc_plus_lbm")) and pd.notna(item.get("unc_minus_lbm"))
             else "",
             axis=1,
         )
-        table_columns = [column for column in DISPLAY_COLUMNS if column in ata_frame.columns]
-        table = ata_frame[table_columns].rename(
+        table_columns = [column for column in DISPLAY_COLUMNS if column in group_frame.columns]
+        table = group_frame[table_columns].rename(
             columns={
-                "component": "Component",
+                "component": "System",
+                "ata_label": "ATA",
                 "qty": "Qty",
                 "unit_mass_kg": "Unit mass (lbm)",
                 "total_mass_kg": "Mass (lbm)",
@@ -539,12 +612,15 @@ def render_ata_tables(latest: pd.DataFrame, ata_summary: pd.DataFrame) -> None:
                 "x_m": "X (ft)",
                 "y_m": "Y (ft)",
                 "z_m": "Z (ft)",
+                "target_mass_lbm": "Target (lbm)",
+                "delta_lbm": "Delta (lbm)",
+                "system_owner": "Owner",
             }
         )
 
         with st.expander(
-            f"{row.ata_display} | {row.total_mass_kg:,.1f} lbm "
-            f"({row.share_pct:.1f}%, {row.item_count:,} components)",
+            f"{row.group} | {row.total_mass_kg:,.1f} lbm "
+            f"({row.share_pct:.1f}%, {row.item_count:,} systems)",
             expanded=True,
         ):
             st.dataframe(
@@ -553,6 +629,8 @@ def render_ata_tables(latest: pd.DataFrame, ata_summary: pd.DataFrame) -> None:
                         "Qty": "{:,.0f}",
                         "Unit mass (lbm)": "{:,.1f}",
                         "Mass (lbm)": "{:,.1f}",
+                        "Target (lbm)": "{:,.1f}",
+                        "Delta (lbm)": "{:+,.1f}",
                         "X (ft)": "{:.2f}",
                         "Y (ft)": "{:.2f}",
                         "Z (ft)": "{:.2f}",
@@ -722,7 +800,38 @@ def render_target_comparison(
         return
 
     st.subheader("Target Comparison")
-    if not ata_targets.empty:
+    if "target_mass_lbm" in latest.columns and latest["target_mass_lbm"].notna().any():
+        comparison = latest.dropna(subset=["target_mass_lbm"]).copy()
+        comparison["status_delta_lbm"] = (
+            comparison["total_mass_kg"] - comparison["target_mass_lbm"]
+        )
+        comparison["status_color"] = comparison["status_delta_lbm"].map(
+            lambda value: "#d62728" if value > 0 else "#2ca02c"
+        )
+        comparison = comparison.sort_values(["group", "ata"])
+        figure = go.Figure()
+        figure.add_trace(
+            go.Bar(
+                x=comparison["component_display"],
+                y=comparison["status_delta_lbm"],
+                marker_color=comparison["status_color"],
+                name="Status",
+                customdata=comparison[["group", "target_mass_lbm", "total_mass_kg"]],
+                hovertemplate="<b>%{x}</b><br>Group: %{customdata[0]}"
+                "<br>Status - Target: %{y:+,.1f} lbm"
+                "<br>Target: %{customdata[1]:,.1f} lbm"
+                "<br>Status: %{customdata[2]:,.1f} lbm<extra></extra>",
+            )
+        )
+        figure.update_layout(
+            yaxis_title="Status - Target (lbm)",
+            xaxis_title="System",
+            height=520,
+            margin=dict(l=10, r=10, t=20, b=10),
+        )
+        figure.add_hline(y=0, line_width=1, line_color="#666")
+        st.plotly_chart(figure, use_container_width=True)
+    elif not ata_targets.empty:
         target_names = dict(zip(ata_targets["ata_label"], ata_targets["ata_name"]))
         actual = (
             latest.groupby(["ata_label", "ata_display"], dropna=False)
@@ -825,8 +934,21 @@ def render_app() -> None:
         lambda value: ata_display_label(value, ata_names)
     )
     exports["component_display"] = exports["ata_display"] + " | " + exports["component"]
+    for column in ("unc_plus_lbm", "unc_minus_lbm"):
+        if column not in exports.columns:
+            exports[column] = pd.NA
     if not uncertainties.empty:
-        exports = exports.merge(uncertainties, on=["ata_label", "component"], how="left")
+        exports = exports.merge(
+            uncertainties,
+            on=["ata_label", "component"],
+            how="left",
+            suffixes=("", "_workbook"),
+        )
+        for column in ("unc_plus_lbm", "unc_minus_lbm"):
+            workbook_column = f"{column}_workbook"
+            if workbook_column in exports.columns:
+                exports[column] = exports[column].combine_first(exports[workbook_column])
+                exports = exports.drop(columns=[workbook_column])
 
     iterations = sorted(
         exports["iteration"].unique(),
@@ -841,7 +963,6 @@ def render_app() -> None:
         st.info("Select at least one export iteration.")
         st.stop()
 
-    top_n = st.sidebar.slider("Visible categories", 5, 40, 20)
     selected_ata = st.sidebar.multiselect(
         "ATA filter",
         sorted(
@@ -849,10 +970,16 @@ def render_app() -> None:
             key=lambda value: int(value) if value.lstrip("-").isdigit() else 999,
         ),
     )
+    selected_groups = st.sidebar.multiselect(
+        "Group filter",
+        sorted(str(value) for value in exports["group"].dropna().unique()),
+    )
 
     filtered = exports[exports["iteration"].isin(selected_iterations)].copy()
     if selected_ata:
         filtered = filtered[filtered["ata_label"].isin(selected_ata)]
+    if selected_groups:
+        filtered = filtered[filtered["group"].isin(selected_groups)]
 
     latest_iteration = selected_iterations[-1]
     latest = filtered[filtered["iteration"] == latest_iteration]
@@ -867,19 +994,21 @@ def render_app() -> None:
     ata_summary["ata_display"] = ata_summary["ata_label"].map(
         lambda value: ata_display_label(value, ata_names)
     )
-    component_summary = summarize_by(latest, "component_display")
+    group_summary = summarize_by(latest, "group")
 
-    st.subheader("ATA Breakdown")
-    render_ata_pie(ata_summary)
-
-    st.subheader("Component Breakdown")
-    render_component_bar(component_summary, top_n)
+    left, right = st.columns(2)
+    with left:
+        st.subheader("ATA Breakdown")
+        render_ata_pie(ata_summary)
+    with right:
+        st.subheader("Group Breakdown")
+        render_group_pie(group_summary)
 
     render_iteration_trend(exports, aircraft_targets)
     render_risk_plot(risk_values)
     render_target_comparison(latest, ata_targets, aircraft_targets)
 
-    render_ata_tables(latest, ata_summary)
+    render_group_tables(latest, group_summary)
 
 
 def main() -> None:
