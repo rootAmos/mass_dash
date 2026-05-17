@@ -100,6 +100,18 @@ def export_version_from_path(path: Path) -> str:
     return version_match.group(0) if version_match else path.stem
 
 
+def export_status_from_path(path: Path) -> str:
+    version_match = re.search(r"_([^_]+)_\d{4}-\d{2}-\d{2}$", path.stem)
+    return version_match.group(1) if version_match else ""
+
+
+def export_date_from_path(path: Path) -> pd.Timestamp:
+    date_match = re.search(r"(\d{4}-\d{2}-\d{2})$", path.stem)
+    if not date_match:
+        return pd.NaT
+    return pd.to_datetime(date_match.group(1), errors="coerce")
+
+
 def version_sort_key(version: str) -> tuple[int, ...]:
     return tuple(int(part) for part in re.findall(r"\d+", str(version)))
 
@@ -131,6 +143,19 @@ def normalize_legacy_metric_export(frame: pd.DataFrame) -> pd.DataFrame:
     return frame
 
 
+def metadata_value(frame: pd.DataFrame, column: str) -> object:
+    if column in frame.columns:
+        values = frame[column].dropna()
+        if not values.empty:
+            return values.iloc[0]
+
+    if {"ata", "component"}.issubset(frame.columns):
+        metadata_rows = frame[frame["ata"].astype(str).str.lower().eq(column)]
+        if not metadata_rows.empty:
+            return metadata_rows["component"].dropna().iloc[0]
+    return pd.NA
+
+
 @st.cache_data(show_spinner=False)
 def load_exports(export_dir: str) -> tuple[pd.DataFrame, list[str]]:
     rows = []
@@ -150,15 +175,23 @@ def load_exports(export_dir: str) -> tuple[pd.DataFrame, list[str]]:
             continue
 
         frame = frame.copy()
+        export_version = export_version_from_path(path)
+        status = metadata_value(frame, "status")
+        last_updated = metadata_value(frame, "last_updated")
+        if pd.isna(status) or not str(status).strip():
+            status = export_status_from_path(path)
+        if pd.isna(last_updated):
+            last_updated = export_date_from_path(path)
+
         frame["export_file"] = path.name
         frame["iteration"] = path.stem
-        frame["export_version"] = export_version_from_path(path)
+        frame["export_version"] = export_version
+        frame["status"] = status
+        frame["last_updated"] = pd.to_datetime(last_updated, errors="coerce")
         for column in NUMERIC_COLUMNS:
             if column in frame.columns:
                 frame[column] = pd.to_numeric(frame[column], errors="coerce")
-        for column in DATE_COLUMNS:
-            if column in frame.columns:
-                frame[column] = pd.to_datetime(frame[column], errors="coerce")
+        frame = frame[frame["ata"].notna()].copy()
         frame = normalize_legacy_metric_export(frame)
         rows.append(frame)
 
@@ -172,10 +205,16 @@ def load_exports(export_dir: str) -> tuple[pd.DataFrame, list[str]]:
 
     exports["ata_label"] = exports["ata"].fillna(-1).astype(int).astype(str)
     exports["component"] = exports["component"].fillna("Unspecified")
+    if "description" not in exports.columns:
+        exports["description"] = ""
     exports["description"] = exports["description"].fillna("").map(
         lambda value: "" if is_excel_error(value) else value
     )
+    if "notes" not in exports.columns:
+        exports["notes"] = ""
     exports["notes"] = exports["notes"].fillna("")
+    if "status" not in exports.columns:
+        exports["status"] = ""
     exports["status"] = exports["status"].fillna("")
     exports["total_mass_kg"] = exports["total_mass_kg"].fillna(0.0)
     if "last_updated" not in exports.columns:
