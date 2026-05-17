@@ -43,9 +43,7 @@ DISPLAY_COLUMNS = [
     "qty",
     "unit_mass_kg",
     "total_mass_kg",
-    "unc_plus_lbm",
-    "unc_minus_lbm",
-    "share_pct",
+    "uncertainty_lbm",
     "x_m",
     "y_m",
     "z_m",
@@ -519,14 +517,16 @@ def render_component_bar(summary: pd.DataFrame, top_n: int) -> None:
 
 
 def render_ata_tables(latest: pd.DataFrame, ata_summary: pd.DataFrame) -> None:
-    total_mass = latest["total_mass_kg"].sum()
     st.subheader("ATA Component Tables")
 
     for row in ata_summary.itertuples(index=False):
         ata_frame = latest[latest["ata_label"] == row.ata_label].copy()
         ata_frame = ata_frame.sort_values(["total_mass_kg", "component"], ascending=[False, True])
-        ata_frame["share_pct"] = (
-            ata_frame["total_mass_kg"] / total_mass * 100 if total_mass else 0.0
+        ata_frame["uncertainty_lbm"] = ata_frame.apply(
+            lambda item: f"+{item['unc_plus_lbm']:,.1f} / -{item['unc_minus_lbm']:,.1f}"
+            if pd.notna(item.get("unc_plus_lbm")) and pd.notna(item.get("unc_minus_lbm"))
+            else "",
+            axis=1,
         )
         table_columns = [column for column in DISPLAY_COLUMNS if column in ata_frame.columns]
         table = ata_frame[table_columns].rename(
@@ -535,9 +535,7 @@ def render_ata_tables(latest: pd.DataFrame, ata_summary: pd.DataFrame) -> None:
                 "qty": "Qty",
                 "unit_mass_kg": "Unit mass (lbm)",
                 "total_mass_kg": "Mass (lbm)",
-                "unc_plus_lbm": "Unc + (lbm)",
-                "unc_minus_lbm": "Unc - (lbm)",
-                "share_pct": "Share (%)",
+                "uncertainty_lbm": "Unc +/- (lbm)",
                 "x_m": "X (ft)",
                 "y_m": "Y (ft)",
                 "z_m": "Z (ft)",
@@ -555,9 +553,6 @@ def render_ata_tables(latest: pd.DataFrame, ata_summary: pd.DataFrame) -> None:
                         "Qty": "{:,.0f}",
                         "Unit mass (lbm)": "{:,.1f}",
                         "Mass (lbm)": "{:,.1f}",
-                        "Unc + (lbm)": "{:,.1f}",
-                        "Unc - (lbm)": "{:,.1f}",
-                        "Share (%)": "{:.1f}",
                         "X (ft)": "{:.2f}",
                         "Y (ft)": "{:.2f}",
                         "Z (ft)": "{:.2f}",
