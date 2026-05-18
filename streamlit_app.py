@@ -101,6 +101,7 @@ RISK_PLOT_HEADERS = {
     "mean_lbm": "meanx",
     "p95_lbm": "p95x",
 }
+EXPORT_CONDITION_CODES = ("OEW", "ZFW", "TOW")
 
 
 def export_version_from_path(path: Path) -> str:
@@ -120,8 +121,57 @@ def export_date_from_path(path: Path) -> pd.Timestamp:
     return pd.to_datetime(date_match.group(1), errors="coerce")
 
 
+def export_timestamp_from_path(path: Path) -> pd.Timestamp:
+    # Preserve filename dates while adding local file times for visual spacing.
+    export_date = export_date_from_path(path)
+    modified_at = pd.Timestamp.fromtimestamp(path.stat().st_mtime)
+    if pd.isna(export_date):
+        return modified_at
+    return export_date + (modified_at - modified_at.normalize())
+
+
 def version_sort_key(version: str) -> tuple[int, ...]:
     return tuple(int(part) for part in re.findall(r"\d+", str(version)))
+
+
+def export_condition_values(frame: pd.DataFrame) -> dict[str, float]:
+    # Captures aircraft summary rows before ATA-only filtering removes them.
+    if "ata" not in frame.columns:
+        return {}
+
+    rows = frame[frame["ata"].astype(str).str.startswith("=")].copy()
+    if rows.empty:
+        return {}
+
+    labels = rows["ata"].astype(str)
+    value_columns = [column for column in rows.columns if column != "ata"]
+    values = {}
+    for code in EXPORT_CONDITION_CODES:
+        matches = labels.str.contains(rf"\({code}\)", case=False, regex=True)
+        if matches.any():
+            numeric_values = pd.to_numeric(
+                rows.loc[matches, value_columns].iloc[0],
+                errors="coerce",
+            ).dropna()
+            if not numeric_values.empty:
+                values[code] = float(numeric_values.iloc[0])
+    return values
+
+
+def iteration_label(exports: pd.DataFrame, iteration: str) -> str:
+    # Gives sidebar selectors readable version/status/time labels.
+    rows = exports[exports["iteration"].eq(iteration)]
+    if rows.empty:
+        return iteration
+
+    versions = rows["export_version"].dropna()
+    statuses = rows["status"].dropna()
+    version = str(versions.iloc[0]) if not versions.empty else iteration
+    status = str(statuses.iloc[0]) if not statuses.empty else ""
+    exported_at = rows["export_created_at"].dropna().min()
+    timestamp = exported_at.strftime("%Y-%m-%d %H:%M") if pd.notna(exported_at) else ""
+    details = " | ".join(value for value in (status, timestamp) if value)
+    return f"{version} ({details})" if details else version
 
 
 def is_excel_error(value: object) -> bool:
@@ -221,24 +271,39 @@ def load_exports(export_dir: str) -> tuple[pd.DataFrame, list[str]]:
 
         frame = frame.copy()
         export_version = export_version_from_path(path)
+        condition_values = export_condition_values(frame)
         status = metadata_value(frame, "status")
         last_updated = metadata_value(frame, "last_updated")
         if pd.isna(status) or not str(status).strip():
             status = export_status_from_path(path)
         if pd.isna(last_updated):
             last_updated = export_date_from_path(path)
+        export_created_at = pd.to_datetime(last_updated, errors="coerce")
+        if (
+            pd.isna(export_created_at)
+            or export_created_at == export_created_at.normalize()
+        ):
+            export_created_at = export_timestamp_from_path(path)
 
         frame["export_file"] = path.name
         frame["iteration"] = path.stem
         frame["export_version"] = export_version
         frame["status"] = status
         frame["last_updated"] = pd.to_datetime(last_updated, errors="coerce")
+        frame["export_created_at"] = export_created_at
+        for code, value in condition_values.items():
+            frame[f"aircraft_{code.lower()}_lbm"] = value
         for column in NUMERIC_COLUMNS:
             if column in frame.columns:
                 frame[column] = pd.to_numeric(frame[column], errors="coerce")
         frame = frame[frame["ata"].notna()].copy()
         frame = frame[frame["total_mass_kg"].notna()].copy()
         frame = normalize_legacy_metric_export(frame)
+        if version_sort_key(export_version) < FIRST_IMPERIAL_EXPORT_VERSION:
+            for code in EXPORT_CONDITION_CODES:
+                column = f"aircraft_{code.lower()}_lbm"
+                if column in frame.columns:
+                    frame[column] = frame[column] * KG_TO_LBM
         rows.append(frame)
 
     if not rows:
@@ -266,6 +331,8 @@ def load_exports(export_dir: str) -> tuple[pd.DataFrame, list[str]]:
     exports["total_mass_kg"] = exports["total_mass_kg"].fillna(0.0)
     if "last_updated" not in exports.columns:
         exports["last_updated"] = pd.NaT
+    if "export_created_at" not in exports.columns:
+        exports["export_created_at"] = exports["last_updated"]
     return exports, warnings
 
 
@@ -457,14 +524,25 @@ def oew_frame(frame: pd.DataFrame) -> pd.DataFrame:
     return frame[frame["ata_label"] != FUEL_ATA_LABEL]
 
 
-def target_condition_value(aircraft_targets: pd.DataFrame, code: str) -> float | None:
-    if aircraft_targets.empty:
+def selected_export_condition_value(frame: pd.DataFrame, code: str) -> float | None:
+    # Reads repeated aircraft condition values attached during export loading.
+    column = f"aircraft_{code.lower()}_lbm"
+    if column not in frame.columns:
         return None
-    rows = aircraft_targets[aircraft_targets["code"].eq(code)]
-    if rows.empty:
+    values = frame[column].dropna()
+    if values.empty:
         return None
-    value = rows["workbook_current_lbm"].iloc[0]
+    value = values.iloc[0]
     return None if pd.isna(value) else float(value)
+
+
+def export_oew_properties(frame: pd.DataFrame) -> dict[str, float]:
+    # Uses exported OEW mass when present while retaining component-derived CG.
+    properties = mass_properties(oew_frame(frame))
+    oew = selected_export_condition_value(frame, "OEW")
+    if oew is not None:
+        properties["mass"] = oew
+    return properties
 
 
 def summarize_by(frame: pd.DataFrame, group_column: str) -> pd.DataFrame:
@@ -489,7 +567,6 @@ def render_header_rows(
     latest: pd.DataFrame,
     latest_iteration: str,
     properties: dict[str, float],
-    aircraft_targets: pd.DataFrame,
 ) -> None:
     versions = sorted(
         str(value) for value in latest["export_version"].dropna().unique() if str(value)
@@ -500,12 +577,16 @@ def render_header_rows(
     columns[0].metric("Version", ", ".join(versions) if versions else latest_iteration)
     columns[1].metric("Status", ", ".join(statuses) if statuses else "Unspecified")
 
-    oew = properties["mass"]
-    mtow = target_condition_value(aircraft_targets, "MTOW")
-    zfw = target_condition_value(aircraft_targets, "ZFW")
+    oew = selected_export_condition_value(latest, "OEW")
+    if oew is None:
+        oew = properties["mass"]
+    tow = selected_export_condition_value(latest, "TOW")
+    if tow is None:
+        tow = latest["total_mass_kg"].sum()
+    zfw = selected_export_condition_value(latest, "ZFW")
     columns = st.columns(3)
     columns[0].metric("OEW", f"{oew:,.1f} lbm")
-    columns[1].metric("MTOW", f"{mtow:,.1f} lbm" if mtow is not None else "N/A")
+    columns[1].metric("TOW", f"{tow:,.1f} lbm")
     columns[2].metric("ZFW", f"{zfw:,.1f} lbm" if zfw is not None else "N/A")
 
     columns = st.columns(3)
@@ -643,13 +724,18 @@ def render_group_tables(latest: pd.DataFrame, group_summary: pd.DataFrame) -> No
 
 
 def render_iteration_trend(exports: pd.DataFrame, aircraft_targets: pd.DataFrame) -> None:
+    if exports.empty:
+        st.subheader("Version History")
+        st.info("No export rows match the selected version history filters.")
+        return
+
     trend = (
         exports.groupby(["export_version", "iteration"], sort=False)
         .apply(
             lambda frame: pd.Series(
                 {
-                    **mass_properties(oew_frame(frame)),
-                    "export_date": frame["last_updated"].dropna().min(),
+                    **export_oew_properties(frame),
+                    "export_created_at": frame["export_created_at"].dropna().min(),
                 }
             ),
             include_groups=False,
@@ -670,30 +756,30 @@ def render_iteration_trend(exports: pd.DataFrame, aircraft_targets: pd.DataFrame
     figure = go.Figure()
     figure.add_trace(
         go.Scatter(
-            x=trend["export_date"],
+            x=trend["export_created_at"],
             y=trend["mass"],
             mode="lines+markers+text",
             name="Status OEW",
             text=trend["export_version"],
             textposition="top center",
             customdata=trend[["iteration", "export_version"]],
-            hovertemplate="<b>%{customdata[1]}</b><br>Date: %{x|%Y-%m-%d}"
+            hovertemplate="<b>%{customdata[1]}</b><br>Exported: %{x|%Y-%m-%d %H:%M}"
             "<br>Status OEW: %{y:,.1f} lbm<extra></extra>",
         )
     )
     if pd.notna(oew_target):
         figure.add_trace(
             go.Scatter(
-                x=trend["export_date"],
+                x=trend["export_created_at"],
                 y=[oew_target] * len(trend),
                 mode="lines+markers",
                 name="Target OEW",
-                hovertemplate="Date: %{x|%Y-%m-%d}<br>Target OEW: %{y:,.1f} lbm"
+                hovertemplate="Exported: %{x|%Y-%m-%d %H:%M}<br>Target OEW: %{y:,.1f} lbm"
                 "<extra></extra>",
             )
         )
     figure.update_layout(
-        xaxis_title="Date",
+        xaxis_title="Export time",
         yaxis_title="OEW (lbm)",
         height=460,
         margin=dict(l=10, r=10, t=20, b=10),
@@ -954,13 +1040,20 @@ def render_app() -> None:
         exports["iteration"].unique(),
         key=lambda value: version_sort_key(export_version_from_path(Path(value))),
     )
-    selected_iterations = st.sidebar.multiselect(
-        "Export iterations",
+    active_iteration = st.sidebar.selectbox(
+        "Aircraft iteration",
         iterations,
-        default=iterations[-1:],
+        index=len(iterations) - 1,
+        format_func=lambda value: iteration_label(exports, value),
+    )
+    selected_iterations = st.sidebar.multiselect(
+        "Version history iterations",
+        iterations,
+        default=iterations,
+        format_func=lambda value: iteration_label(exports, value),
     )
     if not selected_iterations:
-        st.info("Select at least one export iteration.")
+        st.info("Select at least one version history iteration.")
         st.stop()
 
     selected_ata = st.sidebar.multiselect(
@@ -975,20 +1068,23 @@ def render_app() -> None:
         sorted(str(value) for value in exports["group"].dropna().unique()),
     )
 
-    filtered = exports[exports["iteration"].isin(selected_iterations)].copy()
+    latest = exports[exports["iteration"] == active_iteration].copy()
+    history = exports[exports["iteration"].isin(selected_iterations)].copy()
     if selected_ata:
-        filtered = filtered[filtered["ata_label"].isin(selected_ata)]
+        latest = latest[latest["ata_label"].isin(selected_ata)]
+        history = history[history["ata_label"].isin(selected_ata)]
     if selected_groups:
-        filtered = filtered[filtered["group"].isin(selected_groups)]
+        latest = latest[latest["group"].isin(selected_groups)]
+        history = history[history["group"].isin(selected_groups)]
 
-    latest_iteration = selected_iterations[-1]
-    latest = filtered[filtered["iteration"] == latest_iteration]
     properties = mass_properties(oew_frame(latest))
 
     st.caption(
-        f"Showing {len(filtered):,} rows from {len(selected_iterations)} export iteration(s)."
+        f"Showing {len(latest):,} rows for the selected aircraft iteration; "
+        f"history includes {len(history):,} rows from {len(selected_iterations)} iteration(s); "
+        f"aircraft view loaded from {iteration_label(exports, active_iteration)}."
     )
-    render_header_rows(latest, latest_iteration, properties, aircraft_targets)
+    render_header_rows(latest, active_iteration, properties)
 
     ata_summary = summarize_by(latest, "ata_label")
     ata_summary["ata_display"] = ata_summary["ata_label"].map(
@@ -1004,7 +1100,7 @@ def render_app() -> None:
         st.subheader("Group Breakdown")
         render_group_pie(group_summary)
 
-    render_iteration_trend(exports, aircraft_targets)
+    render_iteration_trend(history, aircraft_targets)
     render_risk_plot(risk_values)
     render_target_comparison(latest, ata_targets, aircraft_targets)
 

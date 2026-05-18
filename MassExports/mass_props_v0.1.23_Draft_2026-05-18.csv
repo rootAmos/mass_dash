@@ -1,0 +1,58 @@
+ata,system,group,total_mass_lbm,target_mass_lbm,delta_lbm,x_cg_ft,y_cg_ft,z_cg_ft,mx_lbm_ft,my_lbm_ft,mz_lbm_ft,unc_plus_lbm,unc_minus_lbm,system_owner,notes
+5200,Door,Structure,103,100,-3,8,-2.5,3,824,-257.5,309,51.5,51.5,0,0
+5300,Fuselage,Structure,1785,1800,15,16.5955182072829,0,2.75126050420168,29623,0,4911,892.5,892.5,0,0
+5500,V-Tail,Structure,330,330,0,32.1030303030303,0.727272727272727,5.9030303030303,10594,240,1948,165,165,0,Combined HTP+VTP ruddervators
+5600,Windows,Structure,124,125,1,9.16129032258065,2.21290322580645,4.7258064516129,1136,274.4,586,30.8,30.8,0,0
+5700,Wings,Structure,1158,1160,2,17.2651122625216,1.40932642487047,2,19993,1632,2316,579,579,0,0
+3200,Landing Gear,Structure,970,970,0,16.020618556701,4.02061855670103,0.52319587628866,15540,3900,507.5,485,485,0,0
+2100,Air Conditioning,Mechanical,78,80,2,17.7435897435897,0.423076923076923,2.55769230769231,1384,33,199.5,39,39,0,0
+2700,Flight Controls,Mechanical,220,220,0,19.6454545454545,3.74545454545455,3.92954545454545,4322,824,864.5,102.8,102.8,0,0
+2800,Fuel System,Mechanical,220,220,0,18.0454545454545,0,2.03272727272727,3970,0,447.2,110,110,0,Plumbing/pumps only (fuel mass in Fuel block below)
+2900,Hydraulic Power,Mechanical,90,90,0,20.1333333333333,1.42222222222222,2.84444444444444,1812,128,256,45,45,0,0
+3000,Ice & Rain Protection,Mechanical,67,70,3,14.3880597014925,0.940298507462687,3.8955223880597,964,63,261,33.5,33.5,0,0
+3500,Oxygen,Mechanical,48,50,2,9.54166666666667,0,3,458,0,144,17.4,17.4,0,0
+3600,Pneumatic,Mechanical,58,60,2,25,0,2.5,1450,0,145,29,29,0,0
+3800,Water & Waste,Mechanical,46,45,-1,22.0869565217391,0,1.95652173913043,1016,0,90,23,23,0,0
+2400LV,Electrical Power (Low Voltage),Electrical,386,400,14,12.160621761658,0,2.59844559585492,4694,0,1003,157,157,0,0
+2400HV,Electrical Power (High Voltage Hybrid),Electrical,580,600,20,18.448275862069,1.17241379310345,2.0301724137931,10700,680,1177.5,290,290,0,"Generators, inverters, motor controllers, HV cables"
+3300,Lights,Electrical,28.5,30,1.5,12.4736842105263,0.736842105263158,4.2719298245614,355.5,21,121.75,10.875,10.875,0,0
+2200,Auto Flight,Avionics,16,15,-1,11.75,0,4,188,0,64,4.4,4.4,0,0
+2300,Communications,Avionics,37,35,-2,13.8108108108108,0,5.39189189189189,511,0,199.5,15.5,15.5,0,0
+3100,Instruments,Avionics,61,60,-1,12.4098360655738,0.262295081967213,4.00819672131148,757,16,244.5,11.45,11.45,0,0
+3400,Navigation,Avionics,90,90,0,4.86666666666667,0,3.66666666666667,438,0,330,31.8,31.8,0,0
+7100,Duality Engines (incl. Turbogen & Exhaust),Powerplant,2239,850,-1389,26.7079053148727,0,3.35060294774453,59799,0,7502,1119.5,1119.5,0,"Intake, 2-stage fan, motors, burner, nozzle (LH + RH)"
+7300,Engine Fuel & Control,Powerplant,51,75,24,27.7647058823529,0.941176470588235,3.19607843137255,1416,48,163,25.5,25.5,0,0
+7500,Air (Intakes),Powerplant,62,60,-2,20,0,3.58064516129032,1240,0,222,31,31,0,2 duality + 1 turbogen intakes
+8000,Starting,Powerplant,26,25,-1,27.9230769230769,0.923076923076923,3.34615384615385,726,24,87,13,13,0,0
+2500,Equipment & Furnishings,Interior,750,700,-50,14.55,0.59,3.088,10912.5,442.5,2316,286.5,286.5,0,0
+2600,Fire Protection,Interior,60,60,0,20.1666666666667,2,2.58333333333333,1210,120,155,16.5,16.5,0,0
+TOTAL,,Empty Weight,9683.5,8320,-1363.5,19.2113388754066,0.845603345897661,2.74383745546548,186033,8188.4,26569.95,4616.525,4616.525,,
+,,,,,,,,,,,,,,,
+WEIGHT SUMMARY,Description,Mass (lbm),Spec Target (lbm),Delta (lbm),Margin %,,,,,,,,,,
+Empty Weight,Sum of all ATA subtotals,9683.5,24500,14816.5,0.604755102040816,,,,,,,,,,
+  + Operating Items,"Crew, oil, unusable fuel",450,,,,,,,,,,,,,
+= Operating Empty Weight (OEW),,10133.5,24950,14816.5,0.593847695390782,,,,,,,,,,
+  + Payload,5 pax @ 200 lbm + 300 lbm bags,1300,,,,,,,,,,,,,
+= Zero Fuel Weight (ZFW),,11433.5,28500,17066.5,0.598824561403509,,,,,,,,,,
+  + Fuel,~1200 gal @ 6.7 lbm/gal Jet-A,8000,,,,,,,,,,,,,
+= Takeoff Weight (TOW),,19433.5,37500,18066.5,0.481773333333333,,,,,,,,,,
+- Trip Fuel Burn,Typical mission burn,5500,,,,,,,,,,,,,
+= Landing Weight (LW),,13933.5,33000,19066.5,0.577772727272727,,,,,,,,,,
+,,,,,,,,,,,,,,,
+VERSION,v0.1.23,Date,2026-05-18,,,,,,,,,,,,
+? UNALLOCATED MASS (MDO - Bottom-up),,,,,,,,,,,,,,,
+Group,Bottom-up (lbm),MDO (lbm),Unallocated (lbm),Status,,,,,,,,,,,
+Structure,4470,11942.9419335853,7472.94193358529,wide gap — investigate,,,,,,,,,,,
+Mechanical,827,600.30602482905,0,? closed,,,,,,,,,,,
+Electrical,994.5,489.791369943921,0,? closed,,,,,,,,,,,
+Avionics,204,1321.87492580506,1117.87492580506,wide gap — investigate,,,,,,,,,,,
+Powerplant,2378,873.02952,0,? closed,,,,,,,,,,,
+Interior,810,277.599669864033,0,? closed,,,,,,,,,,,
+TOTAL,9683.5,15505.5434440274,8590.81685939035,wide gap — investigate,,,,,,,,,,,
+
+# METADATA
+,
+,
+,
+,
+,
